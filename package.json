@@ -1,0 +1,13 @@
+{
+  "name": "identity-fuzzer",
+  "version": "1.0.0",
+  "description": "LDAP Identity Fuzzer - Test LDAP/AD directory server security with 149 crafted protocol scenarios",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "cli": "node cli.js"
+  },
+  "devDependencies": {
+    "electron": "^40.6.0"
+  }
+}
