@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'">
+  <link rel="stylesheet" href="styles.css">
+  <title>Identity Fuzzer</title>
+</head>
+<body>
+  <div class="app">
+    <!-- Left sidebar -->
+    <nav class="sidebar">
+      <div class="sidebar-header">
+        <div class="app-logo">&#x1f6e1;</div>
+        <div class="app-title">Identity<br>Fuzzer</div>
+      </div>
+      <div class="sidebar-nav">
+        <button class="nav-btn active" id="ldapNavBtn" data-page="ldap">
+          <span class="nav-icon">&#x1f4c2;</span>
+          <span class="nav-label">LDAP</span>
+        </button>
+        <button class="nav-btn disabled" data-page="kerberos">
+          <span class="nav-icon">&#x1f511;</span>
+          <span class="nav-label">Kerberos</span>
+          <span class="coming-soon">Soon</span>
+        </button>
+        <button class="nav-btn disabled" data-page="radius">
+          <span class="nav-icon">&#x1f4e1;</span>
+          <span class="nav-label">RADIUS</span>
+          <span class="coming-soon">Soon</span>
+        </button>
+        <button class="nav-btn disabled" data-page="ntlm">
+          <span class="nav-icon">&#x1f510;</span>
+          <span class="nav-label">NTLM</span>
+          <span class="coming-soon">Soon</span>
+        </button>
+      </div>
+      <div class="sidebar-footer">
+        <span class="version">v1.0.0</span>
+      </div>
+    </nav>
+
+    <!-- Main content -->
+    <main class="content">
+      <!-- Status bar -->
+      <div class="status-bar">
+        <span class="status-label">LDAP Protocol Fuzzer</span>
+        <span class="status-badge" id="statusBadge">IDLE</span>
+      </div>
+
+      <!-- Toolbar -->
+      <div class="toolbar">
+        <div class="toolbar-group">
+          <label>Mode</label>
+          <select id="modeSelect">
+            <option value="client">Client</option>
+            <option value="server">Server</option>
+          </select>
+        </div>
+        <div class="toolbar-group">
+          <label>Target</label>
+          <input type="text" id="hostInput" value="localhost" placeholder="e.g. ldap.example.com">
+        </div>
+        <div class="toolbar-group">
+          <label>Port</label>
+          <input type="number" id="portInput" value="389" min="1" max="65535">
+        </div>
+        <div class="toolbar-group">
+          <label>Delay (ms)</label>
+          <input type="number" id="delayInput" value="100" min="0">
+        </div>
+        <div class="toolbar-group">
+          <label>Timeout (s)</label>
+          <input type="number" id="timeoutInput" value="10" min="1">
+        </div>
+        <div class="toolbar-group">
+          <label>Workers</label>
+          <input type="number" id="workerInput" value="1" min="1" max="16">
+        </div>
+        <div class="toolbar-group toolbar-check">
+          <label><input type="checkbox" id="localModeCheck"> Local Target</label>
+        </div>
+      </div>
+
+      <!-- Main split -->
+      <div class="main-split">
+        <!-- Scenarios panel -->
+        <div class="panel scenarios-panel">
+          <div class="panel-header">
+            <h3>Scenarios</h3>
+            <div class="scenario-actions">
+              <input type="text" id="scenarioSearch" placeholder="Filter..." class="search-input">
+              <button id="selectAllBtn" class="small-btn">All</button>
+              <button id="deselectAllBtn" class="small-btn">None</button>
+            </div>
+          </div>
+          <div class="scenarios-list" id="scenariosList"></div>
+        </div>
+
+        <!-- Right column -->
+        <div class="right-column">
+          <!-- Controls -->
+          <div class="controls-bar">
+            <button id="runBtn" class="btn btn-primary">&#x25B6; Run</button>
+            <button id="rerunBtn" class="btn btn-secondary" disabled>&#x21BB; Rerun Failed</button>
+            <button id="stopBtn" class="btn btn-danger" disabled>&#x25A0; Stop</button>
+            <div class="control-sep"></div>
+            <label class="loop-label">Loop <input type="number" id="loopInput" value="1" min="1" max="100" class="loop-input"></label>
+            <button id="pcapBtn" class="btn btn-toggle">PCAP Off</button>
+            <div class="progress-wrap">
+              <div class="progress-bar" id="progressBar"></div>
+              <span class="progress-text" id="progressText">0%</span>
+            </div>
+          </div>
+
+          <!-- Results -->
+          <div class="panel results-panel">
+            <div class="panel-header">
+              <h3>Results</h3>
+              <span class="result-count" id="resultCount">0 results</span>
+            </div>
+            <div class="results-table-wrap">
+              <table class="results-table" id="resultsTable">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Scenario</th>
+                    <th>Category</th>
+                    <th>Severity</th>
+                    <th>Status</th>
+                    <th>Finding</th>
+                    <th>Verdict</th>
+                    <th>Response</th>
+                  </tr>
+                </thead>
+                <tbody id="resultsBody"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Packet log -->
+          <div class="panel packet-panel" id="packetPanel">
+            <div class="panel-header">
+              <h3>Live Packet Log</h3>
+              <div class="packet-actions">
+                <button id="clearLogBtn" class="small-btn">Clear</button>
+                <button id="expandLogBtn" class="small-btn" title="Expand / Collapse">&#x2197; Expand</button>
+              </div>
+            </div>
+            <div class="packet-log" id="packetLog"></div>
+          </div>
+
+          <!-- Summary -->
+          <div class="summary-bar" id="summaryBar" style="display:none"></div>
+        </div>
+      </div>
+    </main>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>
