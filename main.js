@@ -103,7 +103,7 @@ ipcMain.handle('run-fuzzer', async (_event, opts) => {
     let clientPort = portNum;
 
     if (localMode) {
-      localServer = new LdapEchoServer({ port: portNum, hostname: 'localhost', logger });
+      localServer = new LdapEchoServer({ port: portNum, hostname: '::', logger });
       try {
         await localServer.start();
         clientPort = localServer.port || portNum;
@@ -222,7 +222,7 @@ ipcMain.handle('run-fuzzer', async (_event, opts) => {
   else if (mode === 'server') {
     const server = new LdapFuzzerServer({
       port: portNum,
-      hostname: '0.0.0.0',
+      hostname: '::',
       timeout: timeout * 1000,
       delay,
       logger,
