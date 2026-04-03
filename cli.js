@@ -125,7 +125,7 @@ async function main() {
   } else {
     const server = new LdapFuzzerServer({
       port: opts.port,
-      hostname: '0.0.0.0',
+      hostname: '::',
       timeout: opts.timeout * 1000,
       delay: opts.delay,
       logger,
