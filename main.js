@@ -1,5 +1,6 @@
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
-const { fork } = require('child_process');
+const { fork, spawn } = require('child_process');
+const crypto = require('crypto');
 const path = require('path');
 const fs = require('fs');
 const { Logger } = require('./lib/logger');
@@ -14,6 +15,11 @@ let mainWindow;
 let activeClient = null;
 let activeServer = null;
 let aborted = false;
+
+// ── AD Simulator state ──────────────────────────────────────────────────────────
+let adSimProcess = null;    // child_process.ChildProcess
+let adSimReady = false;     // bridge.py has sent "ready" event
+let adSimPending = {};      // pending command callbacks: { id: { resolve, reject, timer } }
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -325,4 +331,202 @@ ipcMain.handle('save-log-to-file', async (_event, filePath, content) => {
   } catch (err) {
     return { error: err.message };
   }
+});
+
+// ── AD Simulator helpers ────────────────────────────────────────────────────────
+
+function spawnAdSim() {
+  if (adSimProcess) return; // already running
+
+  const adSimDir = path.join(__dirname, 'lib', 'ad-simulator');
+  const bridgePath = path.join(adSimDir, 'bridge.py');
+
+  // Prefer venv Python if available, fallback to system python3/python
+  // macOS/Linux: .venv/bin/python3   Windows: .venv\Scripts\python.exe
+  const isWin = process.platform === 'win32';
+  const venvPython = isWin
+    ? path.join(adSimDir, '.venv', 'Scripts', 'python.exe')
+    : path.join(adSimDir, '.venv', 'bin', 'python3');
+  const systemPython = isWin ? 'python' : 'python3';
+  const pythonCmd = fs.existsSync(venvPython) ? venvPython : systemPython;
+
+  adSimProcess = spawn(pythonCmd, [bridgePath], {
+    stdio: ['pipe', 'pipe', 'pipe'],
+    cwd: adSimDir,
+  });
+
+  let buffer = '';
+  adSimProcess.stdout.on('data', (chunk) => {
+    buffer += chunk.toString();
+    let lines = buffer.split('\n');
+    buffer = lines.pop(); // keep incomplete line in buffer
+
+    for (const line of lines) {
+      if (!line.trim()) continue;
+      try {
+        const msg = JSON.parse(line);
+
+        // Handle events (no id)
+        if (msg.event) {
+          if (msg.event === 'ready') {
+            adSimReady = true;
+            send('ad-sim-status-event', { ready: true });
+          } else if (msg.event === 'status') {
+            send('ad-sim-status-event', msg.data);
+          } else if (msg.event === 'log') {
+            send('ad-sim-log', msg.data);
+          } else if (msg.event === 'fuzz-progress') {
+            send('ad-sim-fuzz-progress', msg.data);
+          }
+          continue;
+        }
+
+        // Handle responses (has id)
+        if (msg.id && adSimPending[msg.id]) {
+          const { resolve, reject, timer } = adSimPending[msg.id];
+          clearTimeout(timer);
+          delete adSimPending[msg.id];
+
+          if (msg.ok) {
+            resolve(msg.data);
+          } else {
+            reject(new Error(msg.error || 'Unknown error'));
+          }
+        }
+      } catch (e) {
+        console.error('[ad-sim] Failed to parse JSON:', line, e);
+      }
+    }
+  });
+
+  adSimProcess.stderr.on('data', (chunk) => {
+    const text = chunk.toString();
+    console.error('[ad-sim stderr]', text);
+    send('ad-sim-log', { type: 'stderr', message: text.trim(), ts: new Date().toISOString() });
+  });
+
+  adSimProcess.on('exit', (code, signal) => {
+    console.log(`[ad-sim] Process exited: code=${code}, signal=${signal}`);
+    adSimProcess = null;
+    adSimReady = false;
+    // Reject all pending commands
+    for (const id of Object.keys(adSimPending)) {
+      const { reject, timer } = adSimPending[id];
+      clearTimeout(timer);
+      reject(new Error('AD Simulator process exited'));
+      delete adSimPending[id];
+    }
+    send('ad-sim-status-event', { running: false, exited: true, code, signal });
+  });
+
+  adSimProcess.on('error', (err) => {
+    console.error('[ad-sim] Process error:', err);
+    send('ad-sim-status-event', { running: false, error: err.message });
+  });
+}
+
+function sendAdSimCommand(cmd, args = {}, timeout = 30000) {
+  return new Promise((resolve, reject) => {
+    if (!adSimProcess || adSimProcess.killed) {
+      return reject(new Error('AD Simulator process not running'));
+    }
+
+    const id = crypto.randomUUID();
+    const msg = JSON.stringify({ id, cmd, args }) + '\n';
+
+    const timer = setTimeout(() => {
+      delete adSimPending[id];
+      reject(new Error(`Command '${cmd}' timed out after ${timeout}ms`));
+    }, timeout);
+
+    adSimPending[id] = { resolve, reject, timer };
+
+    try {
+      adSimProcess.stdin.write(msg);
+    } catch (e) {
+      clearTimeout(timer);
+      delete adSimPending[id];
+      reject(new Error(`Failed to send command: ${e.message}`));
+    }
+  });
+}
+
+function killAdSim() {
+  if (adSimProcess) {
+    try {
+      adSimProcess.stdin.end();
+      adSimProcess.kill('SIGTERM');
+    } catch (e) {
+      console.error('[ad-sim] Kill error:', e);
+    }
+    adSimProcess = null;
+    adSimReady = false;
+    adSimPending = {};
+  }
+}
+
+// ── AD Simulator IPC handlers ──────────────────────────────────────────────────
+
+ipcMain.handle('ad-sim-start', async (_event, config) => {
+  try {
+    // Spawn process if not running
+    if (!adSimProcess) {
+      spawnAdSim();
+      // Wait for ready event (up to 10 seconds)
+      await new Promise((resolve, reject) => {
+        const check = setInterval(() => {
+          if (adSimReady) { clearInterval(check); resolve(); }
+        }, 100);
+        setTimeout(() => { clearInterval(check); reject(new Error('Bridge startup timeout')); }, 10000);
+      });
+    }
+
+    // Send start command
+    const result = await sendAdSimCommand('start', config || {});
+    return { ok: true, data: result };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+});
+
+ipcMain.handle('ad-sim-stop', async () => {
+  try {
+    if (adSimProcess && adSimReady) {
+      await sendAdSimCommand('stop', {}, 5000);
+    }
+    killAdSim();
+    return { ok: true };
+  } catch (e) {
+    killAdSim();
+    return { ok: true }; // Still return ok since we killed the process
+  }
+});
+
+ipcMain.handle('ad-sim-status', async () => {
+  try {
+    if (!adSimProcess || !adSimReady) {
+      return { ok: true, data: { running: false, processAlive: !!adSimProcess } };
+    }
+    const result = await sendAdSimCommand('status', {}, 5000);
+    return { ok: true, data: result };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+});
+
+ipcMain.handle('ad-sim-command', async (_event, { cmd, args }) => {
+  try {
+    if (!adSimProcess || !adSimReady) {
+      return { ok: false, error: 'AD Simulator not running. Start the server first.' };
+    }
+    const result = await sendAdSimCommand(cmd, args);
+    return { ok: true, data: result };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+});
+
+// ── AD Simulator cleanup on quit ────────────────────────────────────────────────
+app.on('before-quit', () => {
+  killAdSim();
 });
