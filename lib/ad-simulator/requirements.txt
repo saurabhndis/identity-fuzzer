@@ -1,0 +1,5 @@
+ldaptor>=21.2.0
+twisted>=23.0.0
+pydantic>=2.0
+cryptography>=41.0
+click>=8.1

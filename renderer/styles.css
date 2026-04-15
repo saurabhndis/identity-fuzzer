@@ -815,3 +815,825 @@ body {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+/* ============================================================
+   AD Simulator Styles
+   ============================================================ */
+
+/* ── Page Switching ──────────────────────────────────────────────────────── */
+.page {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Active page — inline style="display:none" is removed by JS;
+   .page just needs to be a flex column filling the content area. */
+.page.active {
+  display: flex;
+}
+
+/* ── Tab Navigation ─────────────────────────────────────────────────────── */
+.adsim-tabs {
+  display: flex;
+  gap: 0;
+  padding: 0 16px;
+  border-bottom: 2px solid var(--border);
+  background: var(--bg-secondary);
+  flex-shrink: 0;
+}
+
+.adsim-tab {
+  padding: 10px 16px;
+  font-size: 12px;
+  font-weight: 500;
+  font-family: inherit;
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+
+.adsim-tab:hover:not(.active) {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+.adsim-tab.active {
+  color: var(--accent);
+  font-weight: 600;
+  border-bottom-color: var(--accent);
+}
+
+/* ── Tab Content & Panels ───────────────────────────────────────────────── */
+.adsim-tab-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.adsim-panel {
+  display: none;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 16px;
+}
+
+.adsim-panel.active {
+  display: flex;
+}
+
+.adsim-panel hr {
+  border: none;
+  border-top: 1px solid var(--border-light);
+  margin: 12px 0;
+}
+
+/* ── Server Control Grid ────────────────────────────────────────────────── */
+.adsim-server-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.adsim-server-grid > .panel {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.adsim-server-grid > .adsim-info-panel {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 800px) {
+  .adsim-server-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Form Styles ────────────────────────────────────────────────────────── */
+.adsim-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+}
+
+.form-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.form-row label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.form-row input[type="text"],
+.form-row input[type="number"],
+.form-row input[type="password"],
+.form-row select {
+  width: 100%;
+  padding: 6px 8px;
+  font-size: 12px;
+  font-family: inherit;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: white;
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.form-row input:focus,
+.form-row select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(9,105,218,0.15);
+}
+
+.input-group {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.input-group input {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ── Action Buttons ─────────────────────────────────────────────────────── */
+.adsim-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+}
+
+.adsim-actions .btn-primary,
+.adsim-actions .btn-danger,
+.adsim-actions .btn-secondary {
+  padding: 8px 14px;
+  border-radius: var(--radius);
+  font-size: 12px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.adsim-actions .btn-primary {
+  background: var(--accent);
+  color: white;
+}
+
+.adsim-actions .btn-primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.adsim-actions .btn-danger {
+  background: var(--red);
+  color: white;
+}
+
+.adsim-actions .btn-danger:hover:not(:disabled) {
+  background: #a40e26;
+}
+
+.adsim-actions .btn-secondary {
+  background: white;
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+}
+
+.adsim-actions .btn-secondary:hover:not(:disabled) {
+  background: var(--bg-hover);
+}
+
+.adsim-actions button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.adsim-quick-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.adsim-quick-actions .btn-primary,
+.adsim-quick-actions .btn-danger,
+.adsim-quick-actions .btn-secondary {
+  padding: 6px 14px;
+  border-radius: var(--radius);
+  font-size: 12px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  transition: all 0.15s;
+}
+
+.adsim-quick-actions .btn-primary {
+  background: var(--accent);
+  color: white;
+}
+
+.adsim-quick-actions .btn-primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.adsim-quick-actions .btn-danger {
+  background: var(--red);
+  color: white;
+}
+
+.adsim-quick-actions .btn-danger:hover:not(:disabled) {
+  background: #a40e26;
+}
+
+.adsim-quick-actions .btn-secondary {
+  background: white;
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+}
+
+.adsim-quick-actions .btn-secondary:hover:not(:disabled) {
+  background: var(--bg-hover);
+}
+
+.adsim-quick-actions button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ── Directory Layout (legacy, kept for Groups tab) ─────────────────────── */
+.adsim-directory-layout {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 16px;
+  flex: 1;
+  min-height: 0;
+}
+
+.adsim-directory-layout > .panel {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+@media (max-width: 900px) {
+  .adsim-directory-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Tree View Layout ───────────────────────────────────────────────────── */
+.adsim-tree-layout {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  gap: 0;
+}
+
+.adsim-tree-layout > .tree-panel {
+  width: 320px;
+  min-width: 240px;
+  max-width: 420px;
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.adsim-tree-layout > .details-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+}
+
+@media (max-width: 800px) {
+  .adsim-tree-layout {
+    flex-direction: column;
+  }
+  .adsim-tree-layout > .tree-panel {
+    width: 100%;
+    max-width: none;
+    max-height: 300px;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+}
+
+/* ── Tree Container ─────────────────────────────────────────────────────── */
+.tree-container {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: auto;
+  padding: 4px 0;
+  background: var(--bg-primary);
+}
+
+.tree-root {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.tree-node {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.tree-children {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+/* ── Tree Node Row ──────────────────────────────────────────────────────── */
+.tree-node-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  cursor: pointer;
+  border-radius: 3px;
+  margin: 0 4px;
+  transition: background 0.1s;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.tree-node-row:hover {
+  background: var(--bg-hover);
+}
+
+.tree-node-row.selected {
+  background: var(--accent-light);
+  color: var(--accent);
+}
+
+.tree-node-row.selected .tree-label {
+  font-weight: 600;
+  color: var(--accent);
+}
+
+/* ── Tree Chevron ───────────────────────────────────────────────────────── */
+.tree-chevron {
+  width: 14px;
+  height: 14px;
+  font-size: 9px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 3px;
+  transition: color 0.1s, background 0.1s;
+}
+
+.tree-chevron.has-children:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+/* ── Tree Icon ──────────────────────────────────────────────────────────── */
+.tree-icon {
+  font-size: 14px;
+  flex-shrink: 0;
+  width: 18px;
+  text-align: center;
+}
+
+/* ── Tree Label ─────────────────────────────────────────────────────────── */
+.tree-label {
+  font-size: 12px;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
+}
+
+/* ── Tree Count Badge ───────────────────────────────────────────────────── */
+.tree-count {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: var(--bg-tertiary);
+  padding: 1px 6px;
+  border-radius: 8px;
+  flex-shrink: 0;
+  margin-left: 4px;
+}
+
+/* ── Details Container ──────────────────────────────────────────────────── */
+.details-container {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0;
+}
+
+.node-details {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.detail-row {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.detail-label {
+  font-weight: 600;
+  color: var(--text-secondary);
+  min-width: 100px;
+  flex-shrink: 0;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.detail-value {
+  color: var(--text-primary);
+}
+
+.detail-dn {
+  font-family: 'SF Mono', 'Fira Code', Consolas, monospace;
+  font-size: 11px;
+  word-break: break-all;
+  color: var(--text-secondary);
+}
+
+.detail-actions {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-light);
+}
+
+.detail-children-table {
+  margin-top: 8px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  overflow: hidden;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.detail-children-table .results-table {
+  margin: 0;
+}
+
+.detail-children-table .results-table td {
+  max-width: 180px;
+}
+
+/* ── Details Action Sections ────────────────────────────────────────────── */
+.details-action-section {
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.details-action-section .panel-header {
+  background: var(--bg-tertiary);
+}
+
+.details-action-section .adsim-form {
+  padding: 10px 12px;
+  gap: 8px;
+}
+
+.details-action-section .form-row {
+  gap: 3px;
+}
+
+/* ── Read-only input styling ────────────────────────────────────────────── */
+.input-readonly {
+  background: var(--bg-tertiary) !important;
+  color: var(--text-secondary) !important;
+  cursor: default;
+  font-family: 'SF Mono', 'Fira Code', Consolas, monospace;
+  font-size: 11px !important;
+}
+
+/* ── Fuzzer Layout ──────────────────────────────────────────────────────── */
+.adsim-fuzzer-layout {
+  display: grid;
+  grid-template-columns: 3fr 2fr;
+  gap: 16px;
+  flex: 1;
+  min-height: 0;
+}
+
+.adsim-fuzzer-layout > .panel {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+@media (max-width: 900px) {
+  .adsim-fuzzer-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Table Wrapper ──────────────────────────────────────────────────────── */
+.adsim-table-wrap {
+  flex: 1;
+  overflow-y: auto;
+  max-height: 400px;
+}
+
+/* ── Log Container ──────────────────────────────────────────────────────── */
+.adsim-log {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 12px;
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace;
+  font-size: 11px;
+  line-height: 1.6;
+  background: var(--bg-tertiary);
+  border-radius: 0 0 var(--radius) var(--radius);
+  min-height: 200px;
+}
+
+.adsim-log .log-line {
+  padding: 2px 4px;
+  border-radius: 2px;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.adsim-log .log-line:hover {
+  background: var(--bg-hover);
+}
+
+/* ── Status Badges ──────────────────────────────────────────────────────── */
+.status-badges {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  -webkit-app-region: no-drag;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  background: var(--bg-tertiary);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.badge.running {
+  background: var(--green-bg);
+  color: var(--green);
+}
+
+.badge.stopped {
+  background: var(--bg-tertiary);
+  color: var(--text-muted);
+}
+
+.badge.error {
+  background: var(--red-bg);
+  color: var(--red);
+}
+
+.badge.ok {
+  background: var(--green-bg);
+  color: var(--green);
+}
+
+/* ── Info Panel ─────────────────────────────────────────────────────────── */
+.adsim-info-panel {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.adsim-info {
+  padding: 12px;
+  font-size: 12px;
+  line-height: 1.6;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.adsim-info .info-row {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.adsim-info .info-label {
+  font-weight: 600;
+  color: var(--text-secondary);
+  min-width: 100px;
+  flex-shrink: 0;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.adsim-info .info-value {
+  color: var(--text-primary);
+  font-family: 'SF Mono', 'Fira Code', Consolas, monospace;
+  font-size: 12px;
+}
+
+/* ── Misc ───────────────────────────────────────────────────────────────── */
+.text-muted {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+/* Checkbox styling in fuzzer scenario table */
+.adsim-panel .results-table input[type="checkbox"] {
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+/* Button styling within adsim-form */
+.adsim-form .btn-primary {
+  padding: 8px 14px;
+  border-radius: var(--radius);
+  font-size: 12px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  background: var(--accent);
+  color: white;
+  transition: background 0.15s;
+  align-self: flex-start;
+}
+
+.adsim-form .btn-primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.adsim-form .btn-primary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Status bar h2 in AD Sim page */
+.page .status-bar h2 {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0;
+}
+
+/* ── Badge Variants (used by ad-simulator.js) ───────────────────────────── */
+.badge-success {
+  background: var(--green-bg);
+  color: var(--green);
+}
+
+.badge-warning {
+  background: var(--orange-bg);
+  color: var(--orange);
+}
+
+.badge-error {
+  background: var(--red-bg);
+  color: var(--red);
+}
+
+/* ── Info Grid (server info display) ────────────────────────────────────── */
+.info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.info-item {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  font-size: 12px;
+}
+
+/* ── Progress Fill (AD Sim fuzzer progress bar) ─────────────────────────── */
+.progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: var(--radius);
+  transition: width 0.3s ease;
+}
+
+/* ── Log Entry Styling (AD Sim connection log) ──────────────────────────── */
+.log-timestamp {
+  color: var(--text-muted);
+  font-size: 10px;
+  margin-right: 6px;
+}
+
+.log-operation {
+  font-weight: 600;
+  color: var(--accent);
+  margin-right: 6px;
+  text-transform: uppercase;
+}
+
+.log-dn {
+  color: var(--text-secondary);
+  font-family: 'SF Mono', 'Fira Code', Consolas, monospace;
+  font-size: 11px;
+}
+
+.log-success {
+  color: var(--green);
+  font-weight: 700;
+}
+
+.log-fail {
+  color: var(--red);
+  font-weight: 700;
+}
+
+/* ── Error Log ──────────────────────────────────────────────────────────────── */
+.error-log-container {
+  margin: 0 16px 8px;
+  border: 1px solid #e74c3c;
+  border-radius: 6px;
+  background: #fdf2f2;
+  overflow: hidden;
+}
+.error-log-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: #fce4e4;
+  border-bottom: 1px solid #e74c3c;
+  font-size: 13px;
+  font-weight: 600;
+  color: #c0392b;
+}
+.error-log-header .small-btn {
+  margin-left: auto;
+  font-size: 11px;
+  padding: 2px 8px;
+}
+.error-log-header .small-btn + .small-btn {
+  margin-left: 4px;
+}
+.error-log-body {
+  max-height: 150px;
+  overflow-y: auto;
+  padding: 8px 12px;
+  font-family: 'SF Mono', 'Menlo', 'Monaco', monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #333;
+  user-select: text;
+}
+.error-log-entry {
+  padding: 2px 0;
+  border-bottom: 1px solid #f0e0e0;
+}
+.error-log-error { color: #c0392b; }
+.error-log-warn { color: #e67e22; }
+.error-log-info { color: #2980b9; }
