@@ -10,11 +10,16 @@ const { listLdapScenarios, getLdapScenario, LDAP_CATEGORIES, LDAP_CATEGORY_SEVER
 const { computeOverallGrade, gradeResult } = require('./lib/grader');
 const { WellBehavedClient } = require('./lib/well-behaved-client');
 const { LdapEchoServer } = require('./lib/ldap-echo-server');
+const syslog = require('./lib/syslog');
 
 let mainWindow;
 let activeClient = null;
 let activeServer = null;
 let aborted = false;
+
+// ── Syslog Sender state ─────────────────────────────────────────────────────────
+let syslogTransport = null;
+let syslogAborted = false;
 
 // ── AD Simulator state ──────────────────────────────────────────────────────────
 let adSimProcess = null;    // child_process.ChildProcess
@@ -526,7 +531,137 @@ ipcMain.handle('ad-sim-command', async (_event, { cmd, args }) => {
   }
 });
 
-// ── AD Simulator cleanup on quit ────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+//  SYSLOG SENDER IPC HANDLERS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+ipcMain.handle('syslog-list-templates', () => {
+  const templates = syslog.listTemplates();
+  return templates.map(t => ({
+    name: t.name, eventType: t.eventType, description: t.description,
+    compatibleProfile: t.compatibleProfile,
+    example: syslog.renderTemplate(t, { username: 'john', ip: '10.0.0.1' }),
+  }));
+});
+
+ipcMain.handle('syslog-list-profiles', () => {
+  return Object.values(syslog.PREDEFINED_PROFILES).map(p => ({
+    name: p.name, profileType: p.profileType, eventType: p.eventType,
+    eventString: p.eventString, description: p.description,
+  }));
+});
+
+ipcMain.handle('syslog-send', async (_event, opts) => {
+  const { firewall, transport: transportType, port, sourceIP, certFile, keyFile, caFile, verifySSL,
+    username, ipAddress, eventType, domain, template, count, interval, dryRun } = opts;
+  syslogAborted = false;
+  const gen = new syslog.MessageGenerator({ defaultTemplate: template || 'field-login', defaultDomain: domain || null });
+  const messages = [];
+  const ipGen = new syslog.IPGenerator(ipAddress || '192.168.1.1');
+  for (let n = 0; n < (count || 1); n++) {
+    const ip = n === 0 ? (ipAddress || '192.168.1.1') : ipGen.next();
+    const user = (count || 1) > 1 ? `${username}_${n}` : username;
+    if (eventType === 'logout') { messages.push(gen.logout(user, ip, { domain, template })); }
+    else { messages.push(gen.login(user, ip, { domain, template })); }
+  }
+  if (dryRun) {
+    return { ok: true, dryRun: true, messages: messages.map((m, i) => ({
+      index: i + 1, message: m.message.trimEnd(), username: m.username, ipAddress: m.ipAddress, eventType: m.eventType,
+    })), count: messages.length };
+  }
+  let transport;
+  try {
+    transport = syslog.createTransport(transportType || 'ssl');
+    syslogTransport = transport;
+    const connectOpts = {};
+    if (sourceIP) connectOpts.sourceIP = sourceIP;
+    if (transportType === 'ssl') {
+      connectOpts.verify = verifySSL || false;
+      if (certFile) connectOpts.certFile = certFile;
+      if (keyFile) connectOpts.keyFile = keyFile;
+      if (caFile) connectOpts.caFile = caFile;
+    }
+    await transport.connect(firewall, port || undefined, connectOpts);
+  } catch (e) { return { ok: false, error: `Connection failed: ${e.message}` }; }
+  const results = [];
+  try {
+    for (let i = 0; i < messages.length && !syslogAborted; i++) {
+      const msg = messages[i];
+      try {
+        await transport.send(msg.message);
+        const entry = { index: i + 1, status: 'sent', username: msg.username, ipAddress: msg.ipAddress, eventType: msg.eventType, bytes: Buffer.byteLength(msg.message, 'utf8') };
+        results.push(entry); send('syslog-log', entry);
+      } catch (e) { results.push({ index: i + 1, status: 'error', error: e.message }); send('syslog-log', { index: i + 1, status: 'error', error: e.message }); }
+      if ((interval || 0) > 0 && i < messages.length - 1) { await new Promise(r => setTimeout(r, interval * 1000)); }
+    }
+    return { ok: true, sent: results.filter(r => r.status === 'sent').length, total: messages.length, bytesSent: transport.stats.bytesSent, results };
+  } catch (e) { return { ok: false, error: e.message }; }
+  finally { transport.close(); syslogTransport = null; }
+});
+
+ipcMain.handle('syslog-stress', async (_event, opts) => {
+  syslogAborted = false;
+  try {
+    const result = await syslog.runStress({
+      host: opts.firewall, port: opts.port || undefined, numSenders: opts.senders || 5,
+      messagesPerSender: opts.messages || 100, transportType: opts.transport || 'udp',
+      usernamePattern: opts.usernamePattern || 'stress_{sender}_{n}', baseIP: opts.baseIP || '10.0.0.1',
+      messageTemplate: opts.template || 'minimal-login', sendInterval: opts.rate || 0,
+      domain: opts.domain || null, includeWhiteNoise: opts.whiteNoise || false,
+      sourceIP: opts.sourceIP, certFile: opts.certFile, keyFile: opts.keyFile, verifySSL: opts.verifySSL || false,
+      onProgress: (info) => { send('syslog-progress', info); },
+    });
+    send('syslog-result', result);
+    return { ok: true, result };
+  } catch (e) { return { ok: false, error: e.message }; }
+});
+
+ipcMain.handle('syslog-scenario', async (_event, opts) => {
+  syslogAborted = false;
+  const transportType = opts.transport || 'ssl';
+  let transport;
+  try {
+    transport = syslog.createTransport(transportType);
+    syslogTransport = transport;
+    const connectOpts = {};
+    if (opts.sourceIP) connectOpts.sourceIP = opts.sourceIP;
+    if (transportType === 'ssl') { connectOpts.verify = opts.verifySSL || false; if (opts.certFile) connectOpts.certFile = opts.certFile; if (opts.keyFile) connectOpts.keyFile = opts.keyFile; }
+    const defaultPort = transportType === 'ssl' ? 6514 : 514;
+    await transport.connect(opts.firewall, opts.port || defaultPort, connectOpts);
+  } catch (e) { return { ok: false, error: `Connection failed: ${e.message}` }; }
+  try {
+    let result;
+    if (opts.name === 'login-logout') {
+      result = await syslog.runLoginLogout(transport, { numUsers: opts.users || 10, domain: opts.domain || null, sendLogout: opts.sendLogout !== false, loginInterval: 50, logoutInterval: 50, pauseBetween: 1000, onProgress: (info) => { send('syslog-progress', info); } });
+    } else if (opts.name === 'edge-cases') {
+      result = await syslog.runEdgeCases(transport, { onProgress: (info) => { send('syslog-progress', info); } });
+    } else { return { ok: false, error: `Unknown scenario: ${opts.name}` }; }
+    send('syslog-result', result);
+    return { ok: true, result };
+  } catch (e) { return { ok: false, error: e.message }; }
+  finally { transport.close(); syslogTransport = null; }
+});
+
+ipcMain.handle('syslog-generate-certs', async (_event, opts) => {
+  try {
+    if (opts.selfSigned) {
+      const result = syslog.generateSelfSigned({ commonName: opts.cn || 'syslog-sender-sim', days: opts.days || 365, keySize: opts.keySize || 2048, outputDir: opts.outputDir || path.join(__dirname, 'certs', 'syslog') });
+      return { ok: true, ...result };
+    } else {
+      const result = syslog.generateCAAndClient({ caCN: opts.caCN || 'syslog-sim-ca', clientCN: opts.cn || 'syslog-sender-sim', days: opts.days || 365, keySize: opts.keySize || 2048, outputDir: opts.outputDir || path.join(__dirname, 'certs', 'syslog') });
+      return { ok: true, ...result };
+    }
+  } catch (e) { return { ok: false, error: e.message }; }
+});
+
+ipcMain.handle('syslog-stop', () => {
+  syslogAborted = true;
+  if (syslogTransport) { try { syslogTransport.close(); } catch (_) {} syslogTransport = null; }
+  return { ok: true };
+});
+
+// ── Cleanup on quit ─────────────────────────────────────────────────────────────
 app.on('before-quit', () => {
   killAdSim();
+  if (syslogTransport) { try { syslogTransport.close(); } catch (_) {} syslogTransport = null; }
 });

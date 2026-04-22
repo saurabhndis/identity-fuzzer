@@ -76,3 +76,17 @@ contextBridge.exposeInMainWorld('adSim', {
     return () => ipcRenderer.removeListener('ad-sim-fuzz-progress', handler);
   },
 });
+
+// ── Syslog Sender API ───────────────────────────────────────────────────────────
+contextBridge.exposeInMainWorld('syslog', {
+  listTemplates: () => ipcRenderer.invoke('syslog-list-templates'),
+  listProfiles: () => ipcRenderer.invoke('syslog-list-profiles'),
+  send: (opts) => ipcRenderer.invoke('syslog-send', opts),
+  stress: (opts) => ipcRenderer.invoke('syslog-stress', opts),
+  scenario: (opts) => ipcRenderer.invoke('syslog-scenario', opts),
+  generateCerts: (opts) => ipcRenderer.invoke('syslog-generate-certs', opts),
+  stop: () => ipcRenderer.invoke('syslog-stop'),
+  onProgress: (cb) => { const h = (_e, d) => cb(d); ipcRenderer.on('syslog-progress', h); return () => ipcRenderer.removeListener('syslog-progress', h); },
+  onLog: (cb) => { const h = (_e, d) => cb(d); ipcRenderer.on('syslog-log', h); return () => ipcRenderer.removeListener('syslog-log', h); },
+  onResult: (cb) => { const h = (_e, d) => cb(d); ipcRenderer.on('syslog-result', h); return () => ipcRenderer.removeListener('syslog-result', h); },
+});
