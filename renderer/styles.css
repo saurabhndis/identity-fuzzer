@@ -1637,3 +1637,176 @@ body {
 .error-log-error { color: #c0392b; }
 .error-log-warn { color: #e67e22; }
 .error-log-info { color: #2980b9; }
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   SYSLOG SENDER STYLES
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+/* ── Send Grid ─────────────────────────────────────────────────────────────── */
+.syslog-send-grid {
+  grid-template-columns: 1fr 1fr 1fr;
+}
+
+.syslog-send-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.syslog-send-actions .btn-primary,
+.syslog-send-actions .btn-secondary,
+.syslog-send-actions .btn-danger {
+  flex: 1;
+}
+
+/* ── Results ───────────────────────────────────────────────────────────────── */
+.syslog-results-panel {
+  max-height: calc(100vh - 200px);
+  overflow-y: auto;
+}
+
+.syslog-send-results,
+.syslog-stress-results,
+.syslog-scenario-results {
+  padding: 8px;
+  font-size: 12px;
+  overflow-y: auto;
+  max-height: calc(100vh - 280px);
+}
+
+.syslog-result-success {
+  background: var(--green-bg);
+  border: 1px solid var(--green);
+  border-radius: var(--radius);
+  padding: 10px;
+}
+
+.syslog-result-error {
+  background: var(--red-bg);
+  border: 1px solid var(--red);
+  border-radius: var(--radius);
+  padding: 10px;
+}
+
+.syslog-result-header {
+  font-weight: 600;
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+
+.syslog-result-stat {
+  color: var(--text-secondary);
+  margin: 2px 0;
+}
+
+.syslog-result-list {
+  margin-top: 8px;
+  border-top: 1px solid var(--border-light);
+  padding-top: 6px;
+}
+
+.syslog-result-item {
+  padding: 2px 0;
+  font-family: 'SF Mono', 'Menlo', monospace;
+  font-size: 11px;
+}
+
+.syslog-success { color: var(--green); }
+.syslog-error { color: var(--red); }
+.syslog-pass { color: var(--green); font-weight: 600; }
+.syslog-fail { color: var(--red); font-weight: 600; }
+
+/* ── Preview ───────────────────────────────────────────────────────────────── */
+.syslog-preview {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px;
+}
+
+.syslog-preview-msg {
+  margin: 4px 0;
+  padding: 4px 8px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-light);
+  border-radius: 4px;
+}
+
+.syslog-preview-msg code {
+  font-family: 'SF Mono', 'Menlo', monospace;
+  font-size: 11px;
+  word-break: break-all;
+}
+
+.syslog-example {
+  font-size: 10px;
+  word-break: break-all;
+  max-width: 300px;
+  display: inline-block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Edge Case Tests ───────────────────────────────────────────────────────── */
+.syslog-edge-tests {
+  margin-top: 8px;
+  border-top: 1px solid var(--border-light);
+  padding-top: 6px;
+}
+
+.syslog-edge-test {
+  padding: 3px 0;
+  font-size: 12px;
+}
+
+/* ── Reference Layout (Templates & Profiles) ──────────────────────────────── */
+.syslog-ref-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: calc(100vh - 160px);
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.syslog-ref-layout .panel {
+  flex-shrink: 0;
+}
+
+/* ── Log ───────────────────────────────────────────────────────────────────── */
+.syslog-log {
+  font-family: 'SF Mono', 'Menlo', monospace;
+  font-size: 11px;
+}
+
+.syslog-log .log-entry {
+  padding: 2px 8px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.syslog-log .log-sent { color: var(--green); }
+.syslog-log .log-error { color: var(--red); }
+.syslog-log .log-info { color: var(--text-secondary); }
+
+/* ── Status Badge Variants ─────────────────────────────────────────────────── */
+.badge-running {
+  background: var(--orange-bg);
+  color: var(--orange);
+}
+
+.badge-success {
+  background: var(--green-bg);
+  color: var(--green);
+}
+
+.badge-error {
+  background: var(--red-bg);
+  color: var(--red);
+}
+
+/* ── Text helpers ──────────────────────────────────────────────────────────── */
+.text-error {
+  color: var(--red);
+  font-weight: 500;
+}

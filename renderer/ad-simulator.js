@@ -68,10 +68,11 @@
   var navBtns = document.querySelectorAll('.nav-btn');
   var ldapPage = document.getElementById('ldapPage');
   var adsimPage = document.getElementById('adsimPage');
+  var syslogPage = document.getElementById('syslogPage');
 
-  // ── DOM References — Tabs ──────────────────────────────────────────────────
-  var tabs = document.querySelectorAll('.adsim-tab');
-  var tabPanels = document.querySelectorAll('.adsim-panel');
+  // ── DOM References — Tabs (scoped to adsim page only) ─────────────────────
+  var tabs = adsimPage.querySelectorAll('.adsim-tabs .adsim-tab');
+  var tabPanels = adsimPage.querySelectorAll('.adsim-tab-content .adsim-panel');
 
   // ── DOM References — Server Control ────────────────────────────────────────
   var adSimStartBtn = document.getElementById('adSimStartBtn');
@@ -153,22 +154,27 @@
       if (btn.classList.contains('disabled')) return;
 
       var page = btn.dataset.page;
+      var allPages = [ldapPage, adsimPage, syslogPage];
 
       // Update active button
       navBtns.forEach(function (b) { b.classList.remove('active'); });
       btn.classList.add('active');
 
-      // Show/hide pages
-      if (page === 'ldap') {
+      // Hide all pages
+      allPages.forEach(function (p) {
+        if (p) { p.style.display = 'none'; p.classList.remove('active'); }
+      });
+
+      // Show selected page
+      if (page === 'ldap' && ldapPage) {
         ldapPage.style.display = '';
         ldapPage.classList.add('active');
-        adsimPage.style.display = 'none';
-        adsimPage.classList.remove('active');
-      } else if (page === 'adsim') {
-        ldapPage.style.display = 'none';
-        ldapPage.classList.remove('active');
+      } else if (page === 'adsim' && adsimPage) {
         adsimPage.style.display = '';
         adsimPage.classList.add('active');
+      } else if (page === 'syslog' && syslogPage) {
+        syslogPage.style.display = '';
+        syslogPage.classList.add('active');
       }
     });
   });

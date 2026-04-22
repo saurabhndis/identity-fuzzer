@@ -19,6 +19,14 @@
           <span class="nav-icon">&#x1f4c2;</span>
           <span class="nav-label">LDAP</span>
         </button>
+        <button class="nav-btn" id="adSimNavBtn" data-page="adsim">
+          <span class="nav-icon">🏢</span>
+          <span class="nav-label">AD Sim</span>
+        </button>
+        <button class="nav-btn" id="syslogNavBtn" data-page="syslog">
+          <span class="nav-icon">📡</span>
+          <span class="nav-label">Syslog</span>
+        </button>
       </div>
       <div class="sidebar-footer">
         <span class="version">v1.0.0</span>
@@ -27,6 +35,7 @@
 
     <!-- Main content -->
     <main class="content">
+      <div id="ldapPage" class="page active">
       <!-- Status bar -->
       <div class="status-bar">
         <span class="status-label">LDAP Protocol Fuzzer</span>
@@ -139,8 +148,641 @@
           <div class="summary-bar" id="summaryBar" style="display:none"></div>
         </div>
       </div>
+      </div>
+
+      <div id="adsimPage" class="page" style="display:none">
+        <!-- Status Bar -->
+        <div class="status-bar">
+          <h2>🏢 AD Simulator</h2>
+          <div class="status-badges">
+            <span class="badge" id="adSimStatusBadge">● Stopped</span>
+            <span class="badge" id="adSimPythonBadge">Python: checking...</span>
+          </div>
+        </div>
+
+        <!-- Error Log (collapsible, copyable) -->
+        <div id="adSimErrorLogContainer" class="error-log-container" style="display:none">
+          <div class="error-log-header">
+            <span>⚠️ Messages</span>
+            <button id="adSimClearErrorLog" class="small-btn">Clear</button>
+            <button id="adSimCopyErrorLog" class="small-btn">Copy</button>
+            <button id="adSimToggleErrorLog" class="small-btn">Hide</button>
+          </div>
+          <div id="adSimErrorLog" class="error-log-body"></div>
+        </div>
+
+        <!-- Tab Navigation -->
+        <div class="adsim-tabs">
+          <button class="adsim-tab active" data-tab="server">Server Control</button>
+          <button class="adsim-tab" data-tab="directory">Directory Browser</button>
+          <button class="adsim-tab" data-tab="groups">Groups</button>
+          <button class="adsim-tab" data-tab="fuzzer">Fuzzer</button>
+          <button class="adsim-tab" data-tab="log">Connection Log</button>
+        </div>
+
+        <!-- Tab Panels -->
+        <div class="adsim-tab-content">
+
+          <!-- Server Control Tab -->
+          <div class="adsim-panel active" id="adsimTabServer" data-tab-panel="server">
+            <div class="adsim-server-grid">
+              <!-- Server Config -->
+              <div class="panel">
+                <div class="panel-header"><h3>Server Configuration</h3></div>
+                <div class="adsim-form">
+                  <div class="form-row">
+                    <label for="adSimDomain">Domain Name</label>
+                    <input type="text" id="adSimDomain" value="testlab.local" placeholder="testlab.local">
+                  </div>
+                  <div class="form-row">
+                    <label for="adSimBaseDn">Base DN</label>
+                    <input type="text" id="adSimBaseDn" value="DC=testlab,DC=local" placeholder="DC=testlab,DC=local">
+                  </div>
+                  <div class="form-row">
+                    <label for="adSimPort">LDAP Port</label>
+                    <input type="number" id="adSimPort" value="10389" min="1" max="65535">
+                  </div>
+                  <div class="form-row">
+                    <label for="adSimSslPort">LDAPS Port</label>
+                    <input type="number" id="adSimSslPort" value="10636" min="1" max="65535">
+                  </div>
+                  <div class="form-row">
+                    <label for="adSimAdminPw">Admin Password</label>
+                    <input type="password" id="adSimAdminPw" value="FuzzerAdmin123!" placeholder="Admin password">
+                  </div>
+                </div>
+              </div>
+
+              <!-- Server Actions -->
+              <div class="panel">
+                <div class="panel-header"><h3>Server Actions</h3></div>
+                <div class="adsim-actions">
+                  <button class="btn-primary" id="adSimStartBtn">▶ Start Server</button>
+                  <button class="btn-danger" id="adSimStopBtn" disabled>■ Stop Server</button>
+                  <hr>
+                  <div class="form-row">
+                    <label for="adSimSeedCount">Seed Users</label>
+                    <div class="input-group">
+                      <input type="number" id="adSimSeedCount" value="50" min="1" max="10000">
+                      <button class="btn-secondary" id="adSimSeedBtn" disabled>Seed Directory</button>
+                    </div>
+                  </div>
+                  <hr>
+                  <div class="adsim-quick-actions">
+                    <button class="btn-secondary" id="adSimSaveBtn" disabled>💾 Save State</button>
+                    <button class="btn-secondary" id="adSimLoadBtn" disabled>📂 Load State</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Server Info -->
+              <div class="panel adsim-info-panel">
+                <div class="panel-header"><h3>Server Info</h3></div>
+                <div class="adsim-info" id="adSimInfo">
+                  <p class="text-muted">Start the server to see connection details.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Directory Browser Tab -->
+          <div class="adsim-panel" id="adsimTabDirectory" data-tab-panel="directory" style="display:none">
+            <div class="adsim-tree-layout">
+              <!-- Tree View Panel (Left) -->
+              <div class="panel tree-panel">
+                <div class="panel-header">
+                  <h3>Directory Tree</h3>
+                  <div>
+                    <button class="small-btn" id="adSimRefreshTreeBtn">↻ Refresh</button>
+                    <button class="small-btn" id="adSimCollapseAllBtn">⊟ Collapse</button>
+                    <button class="small-btn" id="adSimExpandAllBtn">⊞ Expand</button>
+                  </div>
+                </div>
+                <div class="tree-container" id="adSimTreeContainer">
+                  <p class="text-muted" style="padding:12px;">Start the server and click Refresh to load the directory tree.</p>
+                </div>
+              </div>
+
+              <!-- Details / Actions Panel (Right) -->
+              <div class="panel details-panel">
+                <div class="panel-header">
+                  <h3 id="adSimDetailTitle">Details</h3>
+                </div>
+                <div class="details-container" id="adSimDetailsContainer">
+                  <p class="text-muted" style="padding:12px;">Select a node in the tree to view details.</p>
+                </div>
+
+                <!-- Add User Form (shown when a container is selected) -->
+                <div id="adSimTreeAddUserSection" class="details-action-section" style="display:none">
+                  <div class="panel-header"><h3>Add User</h3></div>
+                  <div class="adsim-form">
+                    <div class="form-row">
+                      <label for="adSimNewUserCn">Common Name (CN)</label>
+                      <input type="text" id="adSimNewUserCn" placeholder="John Doe">
+                    </div>
+                    <div class="form-row">
+                      <label for="adSimNewUserSam">SAM Account Name</label>
+                      <input type="text" id="adSimNewUserSam" placeholder="jdoe">
+                    </div>
+                    <div class="form-row">
+                      <label for="adSimNewUserEmail">Email (mail)</label>
+                      <input type="email" id="adSimNewUserEmail" placeholder="jdoe@testlab.local">
+                    </div>
+                    <div class="form-row">
+                      <label for="adSimNewUserUpn">UPN Format</label>
+                      <input type="text" id="adSimNewUserUpn" placeholder="{sam}@testlab.local (default)">
+                    </div>
+                    <div class="form-row">
+                      <label for="adSimNewUserPw">Password</label>
+                      <input type="password" id="adSimNewUserPw" value="Password123!" placeholder="Password">
+                    </div>
+                    <div class="form-row">
+                      <label>Container</label>
+                      <input type="text" id="adSimNewUserOu" readonly class="input-readonly">
+                    </div>
+                    <div class="form-row" style="margin-top:6px;border-top:1px solid var(--border);padding-top:6px;">
+                      <label style="font-weight:600;font-size:11px;color:var(--text-muted);">Custom Attributes</label>
+                    </div>
+                    <div class="form-row" style="display:flex;gap:4px;">
+                      <input type="text" id="adSimNewUserCA1Name" placeholder="Attribute name" style="flex:1;">
+                      <input type="text" id="adSimNewUserCA1Value" placeholder="Value" style="flex:1;">
+                    </div>
+                    <div class="form-row" style="display:flex;gap:4px;">
+                      <input type="text" id="adSimNewUserCA2Name" placeholder="Attribute name" style="flex:1;">
+                      <input type="text" id="adSimNewUserCA2Value" placeholder="Value" style="flex:1;">
+                    </div>
+                    <button class="btn-primary" id="adSimAddUserBtn" disabled>+ Add User</button>
+                  </div>
+                </div>
+
+                <!-- Add Group Form (shown when a container is selected) -->
+                <div id="adSimTreeAddGroupSection" class="details-action-section" style="display:none">
+                  <div class="panel-header"><h3>Add Group</h3></div>
+                  <div class="adsim-form">
+                    <div class="form-row">
+                      <label for="adSimTreeNewGroupName">Group Name</label>
+                      <input type="text" id="adSimTreeNewGroupName" placeholder="Engineering">
+                    </div>
+                    <div class="form-row">
+                      <label for="adSimTreeNewGroupEmail">Email (mail)</label>
+                      <input type="email" id="adSimTreeNewGroupEmail" placeholder="engineering@testlab.local">
+                    </div>
+                    <div class="form-row">
+                      <label>Container</label>
+                      <input type="text" id="adSimTreeNewGroupOu" readonly class="input-readonly">
+                    </div>
+                    <button class="btn-primary" id="adSimTreeAddGroupBtn" disabled>+ Add Group</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Groups Tab -->
+          <div class="adsim-panel" id="adsimTabGroups" data-tab-panel="groups" style="display:none">
+            <div class="adsim-directory-layout">
+              <!-- Group List -->
+              <div class="panel">
+                <div class="panel-header">
+                  <h3>Groups</h3>
+                  <div>
+                    <button class="small-btn" id="adSimRefreshGroupsBtn">↻ Refresh</button>
+                  </div>
+                </div>
+                <div class="adsim-table-wrap">
+                  <table class="results-table">
+                    <thead>
+                      <tr>
+                        <th>Group Name</th>
+                        <th>DN</th>
+                        <th>Members</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody id="adSimGroupsList"></tbody>
+                  </table>
+                </div>
+              </div>
+
+              <!-- Add Group / Manage Members -->
+              <div class="panel">
+                <div class="panel-header"><h3>Add Group</h3></div>
+                <div class="adsim-form">
+                  <div class="form-row">
+                    <label for="adSimNewGroupName">Group Name</label>
+                    <input type="text" id="adSimNewGroupName" placeholder="Engineering">
+                  </div>
+                  <div class="form-row">
+                    <label for="adSimNewGroupOu">OU (optional)</label>
+                    <input type="text" id="adSimNewGroupOu" placeholder="Groups">
+                  </div>
+                  <button class="btn-primary" id="adSimAddGroupBtn" disabled>Add Group</button>
+                </div>
+                <hr>
+                <div class="panel-header"><h3>Manage Membership</h3></div>
+                <div class="adsim-form">
+                  <div class="form-row">
+                    <label for="adSimMemberGroupDn">Group DN</label>
+                    <input type="text" id="adSimMemberGroupDn" placeholder="CN=Engineering,OU=Groups,DC=testlab,DC=local">
+                  </div>
+                  <div class="form-row">
+                    <label for="adSimMemberUserDn">Member DN</label>
+                    <input type="text" id="adSimMemberUserDn" placeholder="CN=John Doe,OU=Users,DC=testlab,DC=local">
+                  </div>
+                  <div class="adsim-quick-actions">
+                    <button class="btn-primary" id="adSimAddMemberBtn" disabled>Add Member</button>
+                    <button class="btn-danger" id="adSimRemoveMemberBtn" disabled>Remove Member</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Fuzzer Tab -->
+          <div class="adsim-panel" id="adsimTabFuzzer" data-tab-panel="fuzzer" style="display:none">
+            <div class="adsim-fuzzer-layout">
+              <!-- Scenario List -->
+              <div class="panel">
+                <div class="panel-header">
+                  <h3>AD Fuzz Scenarios</h3>
+                  <button class="small-btn" id="adSimFuzzRefreshBtn">↻ Refresh</button>
+                </div>
+                <div class="adsim-table-wrap">
+                  <table class="results-table">
+                    <thead>
+                      <tr>
+                        <th><input type="checkbox" id="adSimFuzzSelectAll" checked></th>
+                        <th>Scenario</th>
+                        <th>Category</th>
+                        <th>Description</th>
+                      </tr>
+                    </thead>
+                    <tbody id="adSimFuzzScenariosList"></tbody>
+                  </table>
+                </div>
+              </div>
+
+              <!-- Fuzzer Controls & Results -->
+              <div class="panel">
+                <div class="panel-header"><h3>Fuzzer Controls</h3></div>
+                <div class="adsim-actions">
+                  <button class="btn-primary" id="adSimFuzzRunBtn" disabled>▶ Run Fuzz Scenarios</button>
+                  <div class="progress-wrap" id="adSimFuzzProgress" style="display:none">
+                    <div class="progress-bar">
+                      <div class="progress-fill" id="adSimFuzzProgressFill" style="width:0%"></div>
+                    </div>
+                    <span class="progress-text" id="adSimFuzzProgressText">0/0</span>
+                  </div>
+                </div>
+                <div class="panel-header"><h3>Results</h3></div>
+                <div class="adsim-table-wrap">
+                  <table class="results-table">
+                    <thead>
+                      <tr>
+                        <th>Scenario</th>
+                        <th>Status</th>
+                        <th>Details</th>
+                      </tr>
+                    </thead>
+                    <tbody id="adSimFuzzResultsList"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Connection Log Tab -->
+          <div class="adsim-panel" id="adsimTabLog" data-tab-panel="log" style="display:none">
+            <div class="panel" style="height: 100%;">
+              <div class="panel-header">
+                <h3>LDAP Operation Log</h3>
+                <div>
+                  <button class="small-btn" id="adSimLogRefreshBtn">↻ Refresh</button>
+                  <button class="small-btn" id="adSimLogClearBtn">Clear</button>
+                </div>
+              </div>
+              <div class="adsim-log" id="adSimLogContainer">
+                <p class="text-muted">Start the server to see LDAP operations.</p>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <!--  SYSLOG SENDER PAGE                                               -->
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <div id="syslogPage" class="page" style="display:none">
+        <!-- Status Bar -->
+        <div class="status-bar">
+          <span class="status-label">📡 Syslog Sender</span>
+          <span class="badge" id="syslogStatusBadge">● Disconnected</span>
+        </div>
+
+        <!-- Tab Navigation -->
+        <div class="adsim-tabs syslog-tabs">
+          <button class="adsim-tab active" data-tab="syslog-send">Send Events</button>
+          <button class="adsim-tab" data-tab="syslog-stress">Batch / Stress</button>
+          <button class="adsim-tab" data-tab="syslog-scenarios">Scenarios</button>
+          <button class="adsim-tab" data-tab="syslog-templates">Templates &amp; Profiles</button>
+          <button class="adsim-tab" data-tab="syslog-log">Message Log</button>
+        </div>
+
+        <!-- Tab Panels -->
+        <div class="adsim-tab-content syslog-tab-content">
+
+          <!-- ── Send Events Tab ─────────────────────────────────────────── -->
+          <div class="adsim-panel active" data-tab-panel="syslog-send">
+            <div class="adsim-server-grid syslog-send-grid">
+              <!-- Connection Config -->
+              <div class="panel">
+                <div class="panel-header"><h3>Connection</h3></div>
+                <div class="adsim-form">
+                  <div class="form-row">
+                    <label for="syslogFirewall">Firewall IP</label>
+                    <input type="text" id="syslogFirewall" placeholder="10.1.1.1">
+                  </div>
+                  <div class="form-row">
+                    <label for="syslogTransport">Transport</label>
+                    <select id="syslogTransport">
+                      <option value="ssl">SSL (6514)</option>
+                      <option value="udp">UDP (514)</option>
+                    </select>
+                  </div>
+                  <div class="form-row">
+                    <label for="syslogPort">Port</label>
+                    <input type="number" id="syslogPort" placeholder="Auto" min="1" max="65535">
+                  </div>
+                  <div class="form-row">
+                    <label for="syslogSourceIP">Source IP</label>
+                    <input type="text" id="syslogSourceIP" placeholder="Auto">
+                  </div>
+                  <div class="form-row">
+                    <label for="syslogCertFile">Cert File</label>
+                    <input type="text" id="syslogCertFile" placeholder="Path to client.pem">
+                  </div>
+                  <div class="form-row">
+                    <label for="syslogKeyFile">Key File</label>
+                    <input type="text" id="syslogKeyFile" placeholder="Path to client-key.pem">
+                  </div>
+                  <div class="form-row">
+                    <label><input type="checkbox" id="syslogVerifySSL"> Verify SSL</label>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Event Config -->
+              <div class="panel">
+                <div class="panel-header"><h3>Event</h3></div>
+                <div class="adsim-form">
+                  <div class="form-row">
+                    <label for="syslogUsername">Username</label>
+                    <input type="text" id="syslogUsername" value="testuser" placeholder="john">
+                  </div>
+                  <div class="form-row">
+                    <label for="syslogIPAddress">IP Address</label>
+                    <input type="text" id="syslogIPAddress" value="192.168.1.10" placeholder="192.168.1.10">
+                  </div>
+                  <div class="form-row">
+                    <label for="syslogEventType">Event Type</label>
+                    <select id="syslogEventType">
+                      <option value="login">Login</option>
+                      <option value="logout">Logout</option>
+                    </select>
+                  </div>
+                  <div class="form-row">
+                    <label for="syslogDomain">Domain</label>
+                    <input type="text" id="syslogDomain" placeholder="CORP (optional)">
+                  </div>
+                  <div class="form-row">
+                    <label for="syslogTemplate">Template</label>
+                    <select id="syslogTemplate">
+                      <option value="field-login">field-login</option>
+                      <option value="field-logout">field-logout</option>
+                      <option value="regex-login">regex-login</option>
+                      <option value="rfc5424-login">rfc5424-login</option>
+                      <option value="windows-login">windows-login</option>
+                      <option value="cisco-ise-login">cisco-ise-login</option>
+                      <option value="minimal-login">minimal-login</option>
+                    </select>
+                  </div>
+                  <div class="form-row">
+                    <label for="syslogCount">Count</label>
+                    <input type="number" id="syslogCount" value="1" min="1" max="10000">
+                  </div>
+                  <div class="form-row">
+                    <label for="syslogInterval">Interval (s)</label>
+                    <input type="number" id="syslogInterval" value="0" min="0" step="0.1">
+                  </div>
+                  <div class="syslog-send-actions">
+                    <button class="btn-primary" id="syslogSendBtn">▶ Send</button>
+                    <button class="btn-secondary" id="syslogPreviewBtn">👁 Preview</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Results -->
+              <div class="panel syslog-results-panel">
+                <div class="panel-header"><h3>Results</h3></div>
+                <div class="syslog-send-results" id="syslogSendResults">
+                  <p class="text-muted">Configure and click Send to see results.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── Batch / Stress Tab ──────────────────────────────────────── -->
+          <div class="adsim-panel" data-tab-panel="syslog-stress" style="display:none">
+            <div class="adsim-server-grid">
+              <!-- Stress Config -->
+              <div class="panel">
+                <div class="panel-header"><h3>Stress Configuration</h3></div>
+                <div class="adsim-form">
+                  <div class="form-row">
+                    <label for="stressFirewall">Firewall IP</label>
+                    <input type="text" id="stressFirewall" placeholder="10.1.1.1">
+                  </div>
+                  <div class="form-row">
+                    <label for="stressTransport">Transport</label>
+                    <select id="stressTransport">
+                      <option value="udp">UDP (514)</option>
+                      <option value="ssl">SSL (6514)</option>
+                      <option value="both">Both (alternating)</option>
+                    </select>
+                  </div>
+                  <div class="form-row">
+                    <label for="stressSenders">Senders</label>
+                    <input type="number" id="stressSenders" value="5" min="1" max="50">
+                  </div>
+                  <div class="form-row">
+                    <label for="stressMessages">Messages / Sender</label>
+                    <input type="number" id="stressMessages" value="100" min="1" max="10000">
+                  </div>
+                  <div class="form-row">
+                    <label for="stressTemplate">Template</label>
+                    <select id="stressTemplate">
+                      <option value="minimal-login">minimal-login</option>
+                      <option value="field-login">field-login</option>
+                      <option value="rfc5424-login">rfc5424-login</option>
+                    </select>
+                  </div>
+                  <div class="form-row">
+                    <label for="stressRate">Rate (s)</label>
+                    <input type="number" id="stressRate" value="0" min="0" step="0.01">
+                  </div>
+                  <div class="form-row">
+                    <label for="stressDomain">Domain</label>
+                    <input type="text" id="stressDomain" placeholder="Optional">
+                  </div>
+                  <div class="form-row">
+                    <label><input type="checkbox" id="stressWhiteNoise"> White Noise</label>
+                  </div>
+                  <div class="syslog-send-actions">
+                    <button class="btn-primary" id="stressRunBtn">▶ Run Stress Test</button>
+                    <button class="btn-danger" id="stressStopBtn" disabled>■ Stop</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Stress Results -->
+              <div class="panel">
+                <div class="panel-header"><h3>Results</h3></div>
+                <div class="progress-wrap" id="stressProgressWrap" style="display:none">
+                  <div class="progress-bar" id="stressProgressBar"></div>
+                  <span class="progress-text" id="stressProgressText">0%</span>
+                </div>
+                <div class="syslog-stress-results" id="stressResults">
+                  <p class="text-muted">Configure and run a stress test to see results.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── Scenarios Tab ───────────────────────────────────────────── -->
+          <div class="adsim-panel" data-tab-panel="syslog-scenarios" style="display:none">
+            <div class="adsim-server-grid">
+              <!-- Scenario Config -->
+              <div class="panel">
+                <div class="panel-header"><h3>Scenario Configuration</h3></div>
+                <div class="adsim-form">
+                  <div class="form-row">
+                    <label for="scenarioFirewall">Firewall IP</label>
+                    <input type="text" id="scenarioFirewall" placeholder="10.1.1.1">
+                  </div>
+                  <div class="form-row">
+                    <label for="scenarioTransport">Transport</label>
+                    <select id="scenarioTransport">
+                      <option value="ssl">SSL (6514)</option>
+                      <option value="udp">UDP (514)</option>
+                    </select>
+                  </div>
+                  <div class="form-row">
+                    <label for="scenarioName">Scenario</label>
+                    <select id="scenarioName">
+                      <option value="login-logout">Login / Logout Lifecycle</option>
+                      <option value="edge-cases">Edge Cases (14 tests)</option>
+                    </select>
+                  </div>
+                  <div class="form-row" id="scenarioUsersRow">
+                    <label for="scenarioUsers">Users</label>
+                    <input type="number" id="scenarioUsers" value="10" min="1" max="1000">
+                  </div>
+                  <div class="form-row">
+                    <label for="scenarioDomain">Domain</label>
+                    <input type="text" id="scenarioDomain" placeholder="Optional">
+                  </div>
+                  <div class="form-row" id="scenarioLogoutRow">
+                    <label><input type="checkbox" id="scenarioNoLogout"> Skip Logout Phase</label>
+                  </div>
+                  <div class="syslog-send-actions">
+                    <button class="btn-primary" id="scenarioRunBtn">▶ Run Scenario</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Scenario Results -->
+              <div class="panel">
+                <div class="panel-header"><h3>Results</h3></div>
+                <div class="syslog-scenario-results" id="scenarioResults">
+                  <p class="text-muted">Select and run a scenario to see results.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── Templates & Profiles Tab ────────────────────────────────── -->
+          <div class="adsim-panel" data-tab-panel="syslog-templates" style="display:none">
+            <div class="syslog-ref-layout">
+              <!-- Templates -->
+              <div class="panel">
+                <div class="panel-header">
+                  <h3>Message Templates</h3>
+                  <span class="result-count" id="templateCount">0</span>
+                </div>
+                <div class="adsim-table-wrap">
+                  <table class="results-table">
+                    <thead>
+                      <tr>
+                        <th>Name</th>
+                        <th>Type</th>
+                        <th>Profile</th>
+                        <th>Description</th>
+                        <th>Example</th>
+                      </tr>
+                    </thead>
+                    <tbody id="templatesList"></tbody>
+                  </table>
+                </div>
+              </div>
+
+              <!-- Profiles -->
+              <div class="panel">
+                <div class="panel-header">
+                  <h3>Parse Profiles</h3>
+                  <span class="result-count" id="profileCount">0</span>
+                </div>
+                <div class="adsim-table-wrap">
+                  <table class="results-table">
+                    <thead>
+                      <tr>
+                        <th>Name</th>
+                        <th>Type</th>
+                        <th>Event</th>
+                        <th>Event String</th>
+                        <th>Description</th>
+                      </tr>
+                    </thead>
+                    <tbody id="profilesList"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── Message Log Tab ─────────────────────────────────────────── -->
+          <div class="adsim-panel" data-tab-panel="syslog-log" style="display:none">
+            <div class="panel" style="height: 100%;">
+              <div class="panel-header">
+                <h3>Message Log</h3>
+                <div>
+                  <span class="result-count" id="syslogLogCount">0 messages</span>
+                  <button class="small-btn" id="syslogLogClearBtn">Clear</button>
+                </div>
+              </div>
+              <div class="adsim-log syslog-log" id="syslogLogContainer">
+                <p class="text-muted">Send events to see the message log.</p>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
     </main>
   </div>
   <script src="app.js"></script>
+  <script src="ad-simulator.js"></script>
+  <script src="syslog-sender.js"></script>
 </body>
 </html>
