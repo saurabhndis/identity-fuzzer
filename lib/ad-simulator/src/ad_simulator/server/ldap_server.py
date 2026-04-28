@@ -104,6 +104,14 @@ def ldaptor_filter_to_string(ldap_filter: Any) -> str:
         val = _ensure_str(ldap_filter.assertionValue.value)
         return f"({attr}<={val})"
 
+    if isinstance(ldap_filter, pureldap.LDAPFilter_extensibleMatch):
+        # Extensible match: attr[:dn]:matchingRule:=value
+        attr_part = _ensure_str(ldap_filter.type.value) if ldap_filter.type else ""
+        dn_part = ":dn" if ldap_filter.dnAttributes and ldap_filter.dnAttributes.value else ""
+        rule_part = f":{_ensure_str(ldap_filter.matchingRule.value)}" if ldap_filter.matchingRule else ""
+        val = _ensure_str(ldap_filter.matchValue.value)
+        return f"({attr_part}{dn_part}{rule_part}:={val})"
+
     raise ValueError(f"Unsupported ldaptor filter type: {type(ldap_filter).__name__}")
 
 

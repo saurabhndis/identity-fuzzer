@@ -11,6 +11,7 @@ const { computeOverallGrade, gradeResult } = require('./lib/grader');
 const { WellBehavedClient } = require('./lib/well-behaved-client');
 const { LdapEchoServer } = require('./lib/ldap-echo-server');
 const syslog = require('./lib/syslog');
+const xmlapi = require('./lib/xmlapi');
 
 let mainWindow;
 let activeClient = null;
@@ -20,6 +21,10 @@ let aborted = false;
 // ── Syslog Sender state ─────────────────────────────────────────────────────────
 let syslogTransport = null;
 let syslogAborted = false;
+
+// ── XML API User-ID state ────────────────────────────────────────────────────────
+let xmlapiTransport = null;
+let xmlapiAborted = false;
 
 // ── AD Simulator state ──────────────────────────────────────────────────────────
 let adSimProcess = null;    // child_process.ChildProcess
@@ -660,8 +665,215 @@ ipcMain.handle('syslog-stop', () => {
   return { ok: true };
 });
 
+// ═══════════════════════════════════════════════════════════════════════════════
+//  XML API USER-ID IPC HANDLERS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Helper: connect XML API transport with common options.
+ */
+async function _xmlapiConnect(opts) {
+  const transport = new xmlapi.XmlApiTransport();
+  await transport.connect(opts.firewall, opts.port || 443, {
+    apiKey: opts.apiKey,
+    verify: opts.verifySSL || false,
+    certFile: opts.certFile || undefined,
+    keyFile: opts.keyFile || undefined,
+    caFile: opts.caFile || undefined,
+    timeout: opts.timeout || 30000,
+  });
+  return transport;
+}
+
+ipcMain.handle('xmlapi-keygen', async (_event, opts) => {
+  try {
+    const key = await xmlapi.XmlApiTransport.keygen(
+      opts.firewall, opts.port || 443,
+      opts.username, opts.password,
+      { verify: opts.verifySSL || false }
+    );
+    return { ok: true, apiKey: key };
+  } catch (e) { return { ok: false, error: e.message }; }
+});
+
+ipcMain.handle('xmlapi-send', async (_event, opts) => {
+  xmlapiAborted = false;
+  const { firewall, apiKey, port, verifySSL,
+    operation, username, ipAddress, domain, timeout,
+    groupDn, members, tags, dryRun } = opts;
+
+  const gen = new xmlapi.XmlApiGenerator({ defaultDomain: domain || null, defaultTimeout: timeout });
+
+  // Build the XML payload based on operation type
+  let xml;
+  let entryCount = 1;
+  if (operation === 'logout') {
+    const entries = [gen.logoutEntry(username, ipAddress, { domain })];
+    xml = gen.buildLogoutMessages(entries)[0];
+  } else if (operation === 'groups' && groupDn && members) {
+    const memberList = (typeof members === 'string' ? members.split(',').map(s => s.trim()) : members)
+      .map(m => ({ username: m, domain }));
+    xml = gen.buildGroupMessage([{ groupDn, members: memberList }]);
+    entryCount = memberList.length;
+  } else if (operation === 'tag-register' && tags) {
+    const tagList = typeof tags === 'string' ? tags.split(',').map(s => s.trim()) : tags;
+    const entries = [{ ip: ipAddress, tags: tagList }];
+    xml = gen.buildTagRegisterMessages(entries)[0];
+  } else if (operation === 'tag-unregister' && tags) {
+    const tagList = typeof tags === 'string' ? tags.split(',').map(s => s.trim()) : tags;
+    const entries = [{ ip: ipAddress, tags: tagList }];
+    xml = gen.buildTagUnregisterMessages(entries)[0];
+  } else {
+    // Default: login
+    const entries = [gen.loginEntry(username || 'testuser', ipAddress || '10.0.0.1', { domain, timeout })];
+    xml = gen.buildLoginMessages(entries)[0];
+  }
+
+  if (dryRun) {
+    return { ok: true, dryRun: true, xml, operation: operation || 'login', entryCount };
+  }
+
+  let transport;
+  try {
+    transport = await _xmlapiConnect({ firewall, apiKey, port, verifySSL });
+    xmlapiTransport = transport;
+  } catch (e) { return { ok: false, error: `Connection failed: ${e.message}` }; }
+
+  try {
+    const resp = await transport.send(xml);
+    send('xmlapi-log', { operation: operation || 'login', status: resp.status, message: resp.message, xml });
+    return { ok: resp.status === 'success', response: resp, xml, transportStats: transport.stats.toJSON() };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  } finally {
+    transport.disconnect();
+    xmlapiTransport = null;
+  }
+});
+
+ipcMain.handle('xmlapi-bulk', async (_event, opts) => {
+  xmlapiAborted = false;
+  const { firewall, apiKey, port, verifySSL,
+    operation, count, usernamePattern, baseIP, domain, timeout, tags, chunkDelay } = opts;
+
+  let transport;
+  try {
+    transport = await _xmlapiConnect({ firewall, apiKey, port, verifySSL });
+    xmlapiTransport = transport;
+  } catch (e) { return { ok: false, error: `Connection failed: ${e.message}` }; }
+
+  try {
+    const gen = new xmlapi.XmlApiGenerator({ defaultDomain: domain, defaultTimeout: timeout });
+    let messages;
+    let totalEntries = count || 10;
+
+    if (operation === 'logout') {
+      const entries = gen.batchLogoutEntries({ usernamePattern, count: totalEntries, baseIP, domain });
+      messages = gen.buildLogoutMessages(entries);
+    } else if (operation === 'tag-register') {
+      const tagList = typeof tags === 'string' ? tags.split(',').map(s => s.trim()) : (tags || ['test-tag']);
+      const entries = gen.batchTagRegisterEntries({ tags: tagList, count: totalEntries, baseIP });
+      messages = gen.buildTagRegisterMessages(entries);
+    } else if (operation === 'tag-unregister') {
+      const tagList = typeof tags === 'string' ? tags.split(',').map(s => s.trim()) : (tags || ['test-tag']);
+      const entries = gen.batchTagUnregisterEntries({ tags: tagList, count: totalEntries, baseIP });
+      messages = gen.buildTagUnregisterMessages(entries);
+    } else {
+      // Default: login
+      const entries = gen.batchLoginEntries({ usernamePattern, count: totalEntries, baseIP, domain, timeout });
+      messages = gen.buildLoginMessages(entries);
+    }
+
+    let sent = 0;
+    const errors = [];
+    for (let i = 0; i < messages.length && !xmlapiAborted; i++) {
+      const resp = await transport.send(messages[i]);
+      sent++;
+      if (resp.status !== 'success') {
+        errors.push(`Chunk ${i + 1}: ${resp.message || resp.raw}`);
+      }
+      send('xmlapi-progress', { phase: operation || 'login', current: Math.min((i + 1) * gen._chunkSize, totalEntries), total: totalEntries });
+      if ((chunkDelay || 200) > 0 && i < messages.length - 1) {
+        await new Promise(r => setTimeout(r, chunkDelay || 200));
+      }
+    }
+
+    const result = { ok: errors.length === 0, requestsSent: sent, totalEntries, errors, transportStats: transport.stats.toJSON() };
+    send('xmlapi-result', result);
+    return result;
+  } catch (e) {
+    return { ok: false, error: e.message };
+  } finally {
+    transport.disconnect();
+    xmlapiTransport = null;
+  }
+});
+
+ipcMain.handle('xmlapi-scenario', async (_event, opts) => {
+  xmlapiAborted = false;
+  let transport;
+  try {
+    transport = await _xmlapiConnect({ firewall: opts.firewall, apiKey: opts.apiKey, port: opts.port, verifySSL: opts.verifySSL });
+    xmlapiTransport = transport;
+  } catch (e) { return { ok: false, error: `Connection failed: ${e.message}` }; }
+
+  try {
+    let result;
+    const onProgress = (info) => { send('xmlapi-progress', info); };
+
+    if (opts.name === 'login-logout') {
+      result = await xmlapi.runLoginLogout(transport, {
+        numUsers: opts.numUsers || 5, usernamePattern: opts.usernamePattern,
+        baseIP: opts.baseIP, domain: opts.domain, timeout: opts.timeout,
+        pauseBetween: opts.pauseBetween, sendLogout: opts.sendLogout !== false,
+      }, onProgress);
+    } else if (opts.name === 'bulk-login') {
+      result = await xmlapi.runBulkLogin(transport, {
+        count: opts.count || 100, usernamePattern: opts.usernamePattern,
+        baseIP: opts.baseIP, domain: opts.domain, timeout: opts.timeout,
+      }, onProgress);
+    } else if (opts.name === 'group-push') {
+      const memberList = (typeof opts.members === 'string' ? opts.members.split(',').map(s => s.trim()) : (opts.members || []))
+        .map(m => ({ username: m, domain: opts.domain }));
+      result = await xmlapi.runGroupPush(transport, {
+        groupDn: opts.groupDn, members: memberList,
+      }, onProgress);
+    } else if (opts.name === 'tag-register' || opts.name === 'tag-unregister') {
+      const tagList = typeof opts.tags === 'string' ? opts.tags.split(',').map(s => s.trim()) : (opts.tags || ['test-tag']);
+      result = await xmlapi.runTagOperation(transport, {
+        operation: opts.name === 'tag-register' ? 'register' : 'unregister',
+        tags: tagList, count: opts.count || 10, baseIP: opts.baseIP,
+      }, onProgress);
+    } else if (opts.name === 'mixed') {
+      result = await xmlapi.runMixed(transport, {
+        numUsers: opts.numUsers || 5, domain: opts.domain,
+        groupDn: opts.groupDn, tags: opts.tags, baseIP: opts.baseIP,
+      }, onProgress);
+    } else if (opts.name === 'edge-cases') {
+      result = await xmlapi.runEdgeCases(transport, onProgress);
+    } else {
+      return { ok: false, error: `Unknown scenario: ${opts.name}` };
+    }
+
+    send('xmlapi-result', result);
+    return { ok: true, result };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  } finally {
+    transport.disconnect();
+    xmlapiTransport = null;
+  }
+});
+
+ipcMain.handle('xmlapi-stop', () => {
+  xmlapiAborted = true;
+  if (xmlapiTransport) { try { xmlapiTransport.disconnect(); } catch (_) {} xmlapiTransport = null; }
+  return { ok: true };
+});
+
 // ── Cleanup on quit ─────────────────────────────────────────────────────────────
 app.on('before-quit', () => {
   killAdSim();
   if (syslogTransport) { try { syslogTransport.close(); } catch (_) {} syslogTransport = null; }
+  if (xmlapiTransport) { try { xmlapiTransport.disconnect(); } catch (_) {} xmlapiTransport = null; }
 });
