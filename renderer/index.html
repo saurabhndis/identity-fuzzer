@@ -27,6 +27,10 @@
           <span class="nav-icon">📡</span>
           <span class="nav-label">Syslog</span>
         </button>
+        <button class="nav-btn" id="xmlapiNavBtn" data-page="xmlapi">
+          <span class="nav-icon">🔑</span>
+          <span class="nav-label">XML API</span>
+        </button>
       </div>
       <div class="sidebar-footer">
         <span class="version">v1.0.0</span>
@@ -779,10 +783,276 @@
         </div>
       </div>
 
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!--  XML API USER-ID PAGE                                              -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <div id="xmlapiPage" class="page" style="display:none">
+      <div class="status-bar">
+        <span class="status-label">XML API User-ID</span>
+        <span class="status-badge" id="xmlapiStatusBadge">IDLE</span>
+      </div>
+
+      <!-- Tabs -->
+      <div class="syslog-tabs xmlapi-tabs">
+        <button class="adsim-tab active" data-tab="xmlapi-send">Send</button>
+        <button class="adsim-tab" data-tab="xmlapi-bulk">Bulk</button>
+        <button class="adsim-tab" data-tab="xmlapi-scenario">Scenarios</button>
+        <button class="adsim-tab" data-tab="xmlapi-log">Log</button>
+      </div>
+
+      <div class="syslog-tab-content xmlapi-tab-content">
+
+        <!-- ── Send Tab ──────────────────────────────────────────────── -->
+        <div class="adsim-panel active" data-tab-panel="xmlapi-send">
+          <div class="adsim-server-grid">
+            <!-- Connection -->
+            <div class="panel">
+              <div class="panel-header"><h3>Connection</h3></div>
+              <div class="adsim-form">
+                <div class="form-row">
+                  <label for="xmlapiFirewall">Firewall IP</label>
+                  <input type="text" id="xmlapiFirewall" placeholder="10.1.1.1">
+                </div>
+                <div class="form-row">
+                  <label for="xmlapiPort">Port</label>
+                  <input type="number" id="xmlapiPort" value="443" min="1" max="65535">
+                </div>
+                <div class="form-row">
+                  <label for="xmlapiKey">API Key</label>
+                  <input type="password" id="xmlapiKey" placeholder="API key from keygen">
+                </div>
+                <div class="form-row">
+                  <label><input type="checkbox" id="xmlapiVerifySSL"> Verify SSL</label>
+                </div>
+                <div class="panel-header" style="margin-top:8px"><h3>Keygen</h3></div>
+                <div class="form-row">
+                  <label for="xmlapiKeygenUser">Username</label>
+                  <input type="text" id="xmlapiKeygenUser" placeholder="admin">
+                </div>
+                <div class="form-row">
+                  <label for="xmlapiKeygenPass">Password</label>
+                  <input type="password" id="xmlapiKeygenPass" placeholder="password">
+                </div>
+                <div class="syslog-send-actions">
+                  <button class="btn-secondary" id="xmlapiKeygenBtn">🔑 Generate Key</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Operation -->
+            <div class="panel">
+              <div class="panel-header"><h3>Operation</h3></div>
+              <div class="adsim-form">
+                <div class="form-row">
+                  <label for="xmlapiOperation">Type</label>
+                  <select id="xmlapiOperation">
+                    <option value="login">Login (IP→User)</option>
+                    <option value="logout">Logout (Remove)</option>
+                    <option value="groups">Group Push</option>
+                    <option value="tag-register">Tag Register</option>
+                    <option value="tag-unregister">Tag Unregister</option>
+                  </select>
+                </div>
+                <div class="form-row" id="xmlapiUsernameRow">
+                  <label for="xmlapiUsername">Username</label>
+                  <input type="text" id="xmlapiUsername" value="testuser" placeholder="jdoe">
+                </div>
+                <div class="form-row" id="xmlapiIPRow">
+                  <label for="xmlapiIPAddress">IP Address</label>
+                  <input type="text" id="xmlapiIPAddress" value="192.168.1.10" placeholder="10.0.0.1">
+                </div>
+                <div class="form-row" id="xmlapiDomainRow">
+                  <label for="xmlapiDomain">Domain</label>
+                  <input type="text" id="xmlapiDomain" placeholder="CORP (optional)">
+                </div>
+                <div class="form-row" id="xmlapiTimeoutRow">
+                  <label for="xmlapiTimeout">Timeout (s)</label>
+                  <input type="number" id="xmlapiTimeout" placeholder="0 = never" min="0">
+                </div>
+                <div class="form-row" id="xmlapiGroupDnRow" style="display:none">
+                  <label for="xmlapiGroupDn">Group DN</label>
+                  <input type="text" id="xmlapiGroupDn" placeholder="cn=vpn users,cn=users,dc=testlab,dc=local">
+                </div>
+                <div class="form-row" id="xmlapiMembersRow" style="display:none">
+                  <label for="xmlapiMembers">Members</label>
+                  <input type="text" id="xmlapiMembers" placeholder="user1,user2,user3">
+                </div>
+                <div class="form-row" id="xmlapiTagsRow" style="display:none">
+                  <label for="xmlapiTags">Tags</label>
+                  <input type="text" id="xmlapiTags" placeholder="web-server,production">
+                </div>
+                <div class="syslog-send-actions">
+                  <button class="btn-primary" id="xmlapiSendBtn">▶ Send</button>
+                  <button class="btn-secondary" id="xmlapiPreviewBtn">👁 Preview</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Results -->
+            <div class="panel syslog-results-panel">
+              <div class="panel-header"><h3>Results</h3></div>
+              <div class="syslog-send-results" id="xmlapiSendResults">
+                <p class="text-muted">Configure and click Send to see results.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── Bulk Tab ──────────────────────────────────────────────── -->
+        <div class="adsim-panel" data-tab-panel="xmlapi-bulk" style="display:none">
+          <div class="adsim-server-grid">
+            <div class="panel">
+              <div class="panel-header"><h3>Connection</h3></div>
+              <div class="adsim-form">
+                <div class="form-row">
+                  <label for="xmlapiBulkFirewall">Firewall IP</label>
+                  <input type="text" id="xmlapiBulkFirewall" placeholder="10.1.1.1">
+                </div>
+                <div class="form-row">
+                  <label for="xmlapiBulkKey">API Key</label>
+                  <input type="password" id="xmlapiBulkKey" placeholder="API key">
+                </div>
+              </div>
+            </div>
+            <div class="panel">
+              <div class="panel-header"><h3>Bulk Config</h3></div>
+              <div class="adsim-form">
+                <div class="form-row">
+                  <label for="xmlapiBulkOperation">Operation</label>
+                  <select id="xmlapiBulkOperation">
+                    <option value="login">Login</option>
+                    <option value="logout">Logout</option>
+                    <option value="tag-register">Tag Register</option>
+                    <option value="tag-unregister">Tag Unregister</option>
+                  </select>
+                </div>
+                <div class="form-row">
+                  <label for="xmlapiBulkCount">Count</label>
+                  <input type="number" id="xmlapiBulkCount" value="100" min="1" max="100000">
+                </div>
+                <div class="form-row">
+                  <label for="xmlapiBulkPattern">Username Pattern</label>
+                  <input type="text" id="xmlapiBulkPattern" value="user{n}" placeholder="user{n}">
+                </div>
+                <div class="form-row">
+                  <label for="xmlapiBulkBaseIP">Base IP</label>
+                  <input type="text" id="xmlapiBulkBaseIP" value="10.0.0.1" placeholder="10.0.0.1">
+                </div>
+                <div class="form-row">
+                  <label for="xmlapiBulkDomain">Domain</label>
+                  <input type="text" id="xmlapiBulkDomain" placeholder="CORP (optional)">
+                </div>
+                <div class="form-row" id="xmlapiBulkTagsRow">
+                  <label for="xmlapiBulkTags">Tags</label>
+                  <input type="text" id="xmlapiBulkTags" value="test-tag" placeholder="tag1,tag2">
+                </div>
+                <div class="form-row">
+                  <label for="xmlapiBulkDelay">Chunk Delay (ms)</label>
+                  <input type="number" id="xmlapiBulkDelay" value="200" min="0">
+                </div>
+                <div class="syslog-send-actions">
+                  <button class="btn-primary" id="xmlapiBulkRunBtn">▶ Run Bulk</button>
+                  <button class="btn-danger" id="xmlapiBulkStopBtn" disabled>⏹ Stop</button>
+                </div>
+              </div>
+            </div>
+            <div class="panel syslog-results-panel">
+              <div class="panel-header"><h3>Results</h3></div>
+              <div id="xmlapiBulkProgressWrap" style="display:none">
+                <div class="progress-bar-wrap"><div class="progress-bar" id="xmlapiBulkProgressBar" style="width:0%"></div></div>
+                <span class="progress-text" id="xmlapiBulkProgressText">0%</span>
+              </div>
+              <div class="syslog-send-results" id="xmlapiBulkResults">
+                <p class="text-muted">Configure and click Run Bulk to see results.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── Scenario Tab ──────────────────────────────────────────── -->
+        <div class="adsim-panel" data-tab-panel="xmlapi-scenario" style="display:none">
+          <div class="adsim-server-grid">
+            <div class="panel">
+              <div class="panel-header"><h3>Connection</h3></div>
+              <div class="adsim-form">
+                <div class="form-row">
+                  <label for="xmlapiScenarioFirewall">Firewall IP</label>
+                  <input type="text" id="xmlapiScenarioFirewall" placeholder="10.1.1.1">
+                </div>
+                <div class="form-row">
+                  <label for="xmlapiScenarioKey">API Key</label>
+                  <input type="password" id="xmlapiScenarioKey" placeholder="API key">
+                </div>
+              </div>
+            </div>
+            <div class="panel">
+              <div class="panel-header"><h3>Scenario</h3></div>
+              <div class="adsim-form">
+                <div class="form-row">
+                  <label for="xmlapiScenarioName">Scenario</label>
+                  <select id="xmlapiScenarioName">
+                    <option value="login-logout">Login / Logout</option>
+                    <option value="bulk-login">Bulk Login</option>
+                    <option value="group-push">Group Push</option>
+                    <option value="tag-register">Tag Register</option>
+                    <option value="tag-unregister">Tag Unregister</option>
+                    <option value="mixed">Mixed (Login+Group+Tag)</option>
+                    <option value="edge-cases">Edge Cases</option>
+                  </select>
+                </div>
+                <div class="form-row" id="xmlapiScenarioUsersRow">
+                  <label for="xmlapiScenarioUsers">Users / Count</label>
+                  <input type="number" id="xmlapiScenarioUsers" value="5" min="1">
+                </div>
+                <div class="form-row" id="xmlapiScenarioDomainRow">
+                  <label for="xmlapiScenarioDomain">Domain</label>
+                  <input type="text" id="xmlapiScenarioDomain" placeholder="CORP">
+                </div>
+                <div class="form-row" id="xmlapiScenarioGroupRow" style="display:none">
+                  <label for="xmlapiScenarioGroupDn">Group DN</label>
+                  <input type="text" id="xmlapiScenarioGroupDn" placeholder="cn=vpn users,...">
+                </div>
+                <div class="form-row" id="xmlapiScenarioMembersRow" style="display:none">
+                  <label for="xmlapiScenarioMembers">Members</label>
+                  <input type="text" id="xmlapiScenarioMembers" placeholder="user1,user2">
+                </div>
+                <div class="form-row" id="xmlapiScenarioTagsRow" style="display:none">
+                  <label for="xmlapiScenarioTags">Tags</label>
+                  <input type="text" id="xmlapiScenarioTags" value="test-tag" placeholder="tag1,tag2">
+                </div>
+                <div class="syslog-send-actions">
+                  <button class="btn-primary" id="xmlapiScenarioRunBtn">▶ Run</button>
+                </div>
+              </div>
+            </div>
+            <div class="panel syslog-results-panel">
+              <div class="panel-header"><h3>Results</h3></div>
+              <div class="syslog-send-results" id="xmlapiScenarioResults">
+                <p class="text-muted">Select a scenario and click Run.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── Log Tab ───────────────────────────────────────────────── -->
+        <div class="adsim-panel" data-tab-panel="xmlapi-log" style="display:none">
+          <div class="adsim-log-header">
+            <span>Operations: <strong id="xmlapiLogCount">0</strong></span>
+            <button class="small-btn" id="xmlapiLogClearBtn">Clear</button>
+          </div>
+          <div class="adsim-log syslog-log" id="xmlapiLogContainer">
+            <p class="text-muted">Send operations to see the log.</p>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
     </main>
   </div>
   <script src="app.js"></script>
   <script src="ad-simulator.js"></script>
   <script src="syslog-sender.js"></script>
+  <script src="xmlapi-sender.js"></script>
 </body>
 </html>

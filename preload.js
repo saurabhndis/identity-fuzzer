@@ -90,3 +90,15 @@ contextBridge.exposeInMainWorld('syslog', {
   onLog: (cb) => { const h = (_e, d) => cb(d); ipcRenderer.on('syslog-log', h); return () => ipcRenderer.removeListener('syslog-log', h); },
   onResult: (cb) => { const h = (_e, d) => cb(d); ipcRenderer.on('syslog-result', h); return () => ipcRenderer.removeListener('syslog-result', h); },
 });
+
+// ── XML API User-ID API ─────────────────────────────────────────────────────────
+contextBridge.exposeInMainWorld('xmlapi', {
+  keygen: (opts) => ipcRenderer.invoke('xmlapi-keygen', opts),
+  send: (opts) => ipcRenderer.invoke('xmlapi-send', opts),
+  bulk: (opts) => ipcRenderer.invoke('xmlapi-bulk', opts),
+  scenario: (opts) => ipcRenderer.invoke('xmlapi-scenario', opts),
+  stop: () => ipcRenderer.invoke('xmlapi-stop'),
+  onProgress: (cb) => { const h = (_e, d) => cb(d); ipcRenderer.on('xmlapi-progress', h); return () => ipcRenderer.removeListener('xmlapi-progress', h); },
+  onLog: (cb) => { const h = (_e, d) => cb(d); ipcRenderer.on('xmlapi-log', h); return () => ipcRenderer.removeListener('xmlapi-log', h); },
+  onResult: (cb) => { const h = (_e, d) => cb(d); ipcRenderer.on('xmlapi-result', h); return () => ipcRenderer.removeListener('xmlapi-result', h); },
+});

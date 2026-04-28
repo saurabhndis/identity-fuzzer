@@ -69,6 +69,7 @@
   var ldapPage = document.getElementById('ldapPage');
   var adsimPage = document.getElementById('adsimPage');
   var syslogPage = document.getElementById('syslogPage');
+  var xmlapiPage = document.getElementById('xmlapiPage');
 
   // ── DOM References — Tabs (scoped to adsim page only) ─────────────────────
   var tabs = adsimPage.querySelectorAll('.adsim-tabs .adsim-tab');
@@ -154,7 +155,7 @@
       if (btn.classList.contains('disabled')) return;
 
       var page = btn.dataset.page;
-      var allPages = [ldapPage, adsimPage, syslogPage];
+      var allPages = [ldapPage, adsimPage, syslogPage, xmlapiPage];
 
       // Update active button
       navBtns.forEach(function (b) { b.classList.remove('active'); });
@@ -175,6 +176,9 @@
       } else if (page === 'syslog' && syslogPage) {
         syslogPage.style.display = '';
         syslogPage.classList.add('active');
+      } else if (page === 'xmlapi' && xmlapiPage) {
+        xmlapiPage.style.display = '';
+        xmlapiPage.classList.add('active');
       }
     });
   });

@@ -12,6 +12,7 @@ PAN-OS LDAP client code:
 - NOT:         ``(!(userAccountControl=514))``
 - GTE:         ``(whenChanged>=20240101000000.0Z)``
 - LTE:         ``(userAccountControl<=512)``
+- Extensible:  ``(userAccountControl:1.2.840.113556.1.4.803:=2)``
 """
 
 from __future__ import annotations
@@ -241,6 +242,65 @@ class LessOrEqualFilter(FilterNode):
         return f"({self.attribute}<={self.value})"
 
 
+class ExtensibleMatchFilter(FilterNode):
+    """Extensible match filter: ``(attr:oid:=value)``.
+
+    Supports the AD-specific bitwise matching rules used by PAN-OS:
+
+    - ``1.2.840.113556.1.4.803`` — LDAP_MATCHING_RULE_BIT_AND
+      True when ``(entry_value & assertion_value) == assertion_value``
+    - ``1.2.840.113556.1.4.804`` — LDAP_MATCHING_RULE_BIT_OR
+      True when ``(entry_value & assertion_value) != 0``
+
+    For unrecognised OIDs the filter falls back to simple equality.
+    """
+
+    # AD bitwise matching rule OIDs
+    LDAP_MATCHING_RULE_BIT_AND = "1.2.840.113556.1.4.803"
+    LDAP_MATCHING_RULE_BIT_OR = "1.2.840.113556.1.4.804"
+
+    def __init__(self, attribute: str, matching_rule: str, value: str, dn_flag: bool = False) -> None:
+        self.attribute = attribute
+        self.matching_rule = matching_rule
+        self.value = value
+        self.dn_flag = dn_flag
+
+    def matches(self, entry: LDAPEntry) -> bool:
+        values = entry.get_attr(self.attribute)
+        if not values:
+            return False
+
+        try:
+            assertion = int(self.value)
+        except ValueError:
+            # Non-integer value — fall back to equality
+            target = self.value.lower()
+            return any(v.lower() == target for v in values)
+
+        for v in values:
+            try:
+                entry_val = int(v)
+            except ValueError:
+                continue
+
+            if self.matching_rule == self.LDAP_MATCHING_RULE_BIT_AND:
+                if (entry_val & assertion) == assertion:
+                    return True
+            elif self.matching_rule == self.LDAP_MATCHING_RULE_BIT_OR:
+                if (entry_val & assertion) != 0:
+                    return True
+            else:
+                # Unknown OID — treat as equality
+                if entry_val == assertion:
+                    return True
+
+        return False
+
+    def __repr__(self) -> str:
+        dn_part = ":dn" if self.dn_flag else ""
+        return f"({self.attribute}{dn_part}:{self.matching_rule}:={self.value})"
+
+
 # ---------------------------------------------------------------------------
 # Parser
 # ---------------------------------------------------------------------------
@@ -337,11 +397,32 @@ def _parse_not(s: str, pos: int) -> tuple[FilterNode, int]:
     return NotFilter(child), pos
 
 
+# Regex for extensible match: attr[:dn]:matchingRule:=value
+_EXTENSIBLE_RE = re.compile(
+    r"^(?P<attr>[a-zA-Z][a-zA-Z0-9-]*)"       # attribute name
+    r"(?P<dn>:dn)?"                             # optional :dn flag
+    r":(?P<oid>[0-9]+(?:\.[0-9]+)*)"            # :matchingRuleOID
+    r":=(?P<value>.*)$"                         # :=assertionValue
+)
+
+
 def _parse_simple(s: str, pos: int) -> tuple[FilterNode, int]:
-    """Parse a simple (non-composite) filter: equality, substring, presence, GTE, LTE."""
+    """Parse a simple (non-composite) filter: equality, substring, presence,
+    GTE, LTE, or extensible match."""
     # Find the closing ')' — but handle escaped characters
     end = _find_closing_paren_content(s, pos)
     content = s[pos:end]
+
+    # Check for extensible match first: attr:OID:=value
+    # Must be checked before ':=' is misinterpreted by other branches
+    ext_match = _EXTENSIBLE_RE.match(content)
+    if ext_match:
+        return ExtensibleMatchFilter(
+            attribute=ext_match.group("attr"),
+            matching_rule=ext_match.group("oid"),
+            value=ext_match.group("value"),
+            dn_flag=ext_match.group("dn") is not None,
+        ), end
 
     # Check for >= (greaterOrEqual)
     gte_idx = content.find(">=")

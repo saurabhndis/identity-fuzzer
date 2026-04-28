@@ -112,6 +112,7 @@ class UserManager:
             "distinguishedName": [dn],
             "objectCategory": [object_category],
             "userAccountControl": ["512"],
+            "primaryGroupID": ["513"],
             "whenCreated": [now],
             "whenChanged": [now],
         }
