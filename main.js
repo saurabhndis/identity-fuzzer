@@ -12,6 +12,7 @@ const { WellBehavedClient } = require('./lib/well-behaved-client');
 const { LdapEchoServer } = require('./lib/ldap-echo-server');
 const syslog = require('./lib/syslog');
 const xmlapi = require('./lib/xmlapi');
+const traffic = require('./lib/traffic');
 
 let mainWindow;
 let activeClient = null;
@@ -25,6 +26,11 @@ let syslogAborted = false;
 // ── XML API User-ID state ────────────────────────────────────────────────────────
 let xmlapiTransport = null;
 let xmlapiAborted = false;
+
+// ── Traffic Generator state ──────────────────────────────────────────────────
+let trafficClient = null;
+let trafficServer = null;
+let trafficAborted = false;
 
 // ── AD Simulator state ──────────────────────────────────────────────────────────
 let adSimProcess = null;    // child_process.ChildProcess
@@ -320,6 +326,120 @@ ipcMain.handle('stop-fuzzer', () => {
     try { activeServer.stop(); } catch (_) {}
     activeServer = null;
   }
+  return { ok: true };
+});
+
+
+// ── Traffic Generator IPC ───────────────────────────────────────────────────────
+
+ipcMain.handle('traffic:list-scenarios', () => {
+  const { categories, scenarios, categorySeverity, defaultDisabled } = traffic.listTrafficScenarios();
+  const stripped = {};
+  for (const [cat, items] of Object.entries(scenarios)) {
+    stripped[cat] = items.map(s => {
+      let stepsSummary = [];
+      if (s.steps) {
+        stepsSummary = s.steps.map(step => {
+          const summary = { type: step.type };
+          if (step.label) summary.label = step.label;
+          if (step.mode) summary.mode = step.mode;
+          if (step.port) summary.port = step.port;
+          if (step.dscp) summary.dscp = step.dscp;
+          if (step.alpn) summary.alpn = step.alpn;
+          if (step.timeout) summary.timeout = step.timeout;
+          if (step.ms) summary.ms = step.ms;
+          if (step.count) summary.count = step.count;
+          if (step.expectStatus) summary.expectStatus = step.expectStatus;
+          return summary;
+        });
+      }
+      return { name: s.name, category: s.category, description: s.description, side: s.side, expected: s.expected, expectedReason: s.expectedReason, dscp: s.dscp, useCustomEndpoint: s.useCustomEndpoint, steps: stepsSummary };
+    });
+  }
+  return { categories, scenarios: stripped, categorySeverity, defaultDisabled };
+});
+
+ipcMain.handle('traffic:run', async (_event, runOpts) => {
+  trafficAborted = false;
+  const logger = new Logger({ verbose: true, json: false });
+  logger._emit = (event) => { send('traffic:log', event); };
+
+  const mode = runOpts.mode || 'client';
+  const scenarioNames = runOpts.scenarios || [];
+  const results = [];
+
+  let scenarioList;
+  if (scenarioNames.length > 0) {
+    scenarioList = scenarioNames.map(name => traffic.getTrafficScenario(name)).filter(Boolean);
+  } else if (runOpts.category) {
+    scenarioList = traffic.getTrafficScenariosByCategory(runOpts.category);
+  } else {
+    scenarioList = mode === 'server' ? traffic.listTrafficServerScenarios() : traffic.listTrafficClientScenarios();
+  }
+
+  const total = scenarioList.length;
+
+  if (mode === 'client') {
+    trafficClient = new traffic.TrafficFuzzerClient({
+      host: runOpts.host || 'localhost',
+      port: runOpts.port || traffic.DEFAULT_TCP_PORT,
+      timeout: (runOpts.timeout || 10) * 1000,
+      delay: runOpts.delay || 100,
+      dscp: runOpts.dscp || 0,
+      httpHost: runOpts.httpHost,
+      httpEndpoint: runOpts.httpEndpoint,
+      http2Endpoint: runOpts.http2Endpoint,
+      logger,
+      pcapFile: runOpts.pcapFile,
+    });
+
+    for (let i = 0; i < scenarioList.length; i++) {
+      if (trafficAborted) break;
+      const s = scenarioList[i];
+      send('traffic:progress', { current: i + 1, total, scenario: s.name });
+      try {
+        const result = await trafficClient.runScenario(s);
+        result.category = s.category;
+        result.description = s.description;
+        if (s.expected) {
+          const effective = result.status === 'TIMEOUT' ? 'DROPPED' : result.status;
+          result.verdict = effective === s.expected ? 'AS EXPECTED' : 'UNEXPECTED';
+        }
+        results.push(result);
+        send('traffic:result', result);
+      } catch (err) {
+        const errResult = { scenario: s.name, category: s.category, status: 'ERROR', response: err.message };
+        results.push(errResult);
+        send('traffic:result', errResult);
+      }
+    }
+    trafficClient = null;
+  } else {
+    trafficServer = new traffic.TrafficFuzzerServer({
+      port: runOpts.port || traffic.DEFAULT_TCP_PORT,
+      hostname: '::',
+      timeout: (runOpts.timeout || 10) * 1000,
+      httpHost: runOpts.httpHost,
+      httpEndpoint: runOpts.httpEndpoint,
+      http2Endpoint: runOpts.http2Endpoint,
+      logger,
+    });
+    await trafficServer.start();
+    send('traffic:log', { ts: new Date().toISOString(), type: 'info', message: 'Server started — TCP/HTTP: ' + trafficServer.actualPort + ', HTTPS/H2: ' + trafficServer.actualHttpsPort });
+    send('traffic:progress', { current: 0, total: 0, scenario: 'Server running — waiting for clients...' });
+    return { ok: true, serverMode: true, port: trafficServer.actualPort, httpsPort: trafficServer.actualHttpsPort };
+  }
+
+  const passed = results.filter(r => r.status === 'PASSED').length;
+  const failed = results.filter(r => r.status === 'ERROR' || r.status === 'FAILED').length;
+  send('traffic:report', { total: results.length, passed, failed, results });
+  return { ok: true, total: results.length, passed, failed };
+});
+
+ipcMain.handle('traffic:stop', () => {
+  trafficAborted = true;
+  if (trafficClient) { trafficClient = null; }
+  if (trafficServer) { try { trafficServer.stop(); } catch (_) {} trafficServer = null; }
   return { ok: true };
 });
 

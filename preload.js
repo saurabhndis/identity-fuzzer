@@ -102,3 +102,14 @@ contextBridge.exposeInMainWorld('xmlapi', {
   onLog: (cb) => { const h = (_e, d) => cb(d); ipcRenderer.on('xmlapi-log', h); return () => ipcRenderer.removeListener('xmlapi-log', h); },
   onResult: (cb) => { const h = (_e, d) => cb(d); ipcRenderer.on('xmlapi-result', h); return () => ipcRenderer.removeListener('xmlapi-result', h); },
 });
+
+// ── Traffic Generator API ───────────────────────────────────────────────────────
+contextBridge.exposeInMainWorld('traffic', {
+  listScenarios: () => ipcRenderer.invoke('traffic:list-scenarios'),
+  run: (opts) => ipcRenderer.invoke('traffic:run', opts),
+  stop: () => ipcRenderer.invoke('traffic:stop'),
+  onResult: (cb) => { const h = (_e, d) => cb(d); ipcRenderer.on('traffic:result', h); return () => ipcRenderer.removeListener('traffic:result', h); },
+  onLog: (cb) => { const h = (_e, d) => cb(d); ipcRenderer.on('traffic:log', h); return () => ipcRenderer.removeListener('traffic:log', h); },
+  onProgress: (cb) => { const h = (_e, d) => cb(d); ipcRenderer.on('traffic:progress', h); return () => ipcRenderer.removeListener('traffic:progress', h); },
+  onReport: (cb) => { const h = (_e, d) => cb(d); ipcRenderer.on('traffic:report', h); return () => ipcRenderer.removeListener('traffic:report', h); },
+});
