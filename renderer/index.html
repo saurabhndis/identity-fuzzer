@@ -31,6 +31,10 @@
           <span class="nav-icon">🔑</span>
           <span class="nav-label">XML API</span>
         </button>
+        <button class="nav-btn" id="trafficNavBtn" data-page="traffic">
+          <span class="nav-icon">🌐</span>
+          <span class="nav-label">Traffic Gen</span>
+        </button>
       </div>
       <div class="sidebar-footer">
         <span class="version">v1.0.0</span>
@@ -1048,11 +1052,71 @@
       </div>
     </div>
 
+
+      <!-- ═══ Traffic Generator Page ═════════════════════════════════════════ -->
+      <div id="trafficPage" class="page" style="display:none">
+        <div class="status-bar">
+          <span class="status-label">Traffic Generator</span>
+          <span class="status-badge" id="trafficStatusBadge">IDLE</span>
+        </div>
+        <div class="toolbar" style="gap:0; padding:0;">
+          <button class="sub-tab active-sub-tab" id="trafficTabTcp" data-protocol="tcp" style="flex:1; padding:8px 16px; border:none; cursor:pointer; font-weight:bold; background:#e8f4fd; border-bottom:3px solid #2196F3;">📡 TCP</button>
+          <button class="sub-tab" id="trafficTabHttp" data-protocol="http" style="flex:1; padding:8px 16px; border:none; cursor:pointer; background:#f5f5f5; border-bottom:3px solid transparent;">🌐 HTTP</button>
+          <button class="sub-tab" id="trafficTabHttp2" data-protocol="http2" style="flex:1; padding:8px 16px; border:none; cursor:pointer; background:#f5f5f5; border-bottom:3px solid transparent;">⚡ HTTP/2</button>
+        </div>
+        <div class="toolbar">
+          <div class="toolbar-group"><label>Mode</label><select id="trafficModeSelect"><option value="client">Client</option><option value="server">Server</option></select></div>
+          <div class="toolbar-group"><label>Target</label><input type="text" id="trafficHostInput" value="localhost" placeholder="e.g. 10.0.0.1"></div>
+          <div class="toolbar-group"><label>Port</label><input type="number" id="trafficPortInput" value="8080" min="1" max="65535"></div>
+          <div class="toolbar-group"><label>DSCP</label><select id="trafficDscpSelect"><option value="0">Default (BE)</option><option value="CS1">CS1</option><option value="AF11">AF11</option><option value="AF21">AF21</option><option value="AF31">AF31</option><option value="AF41">AF41</option><option value="CS5">CS5 (Voice)</option><option value="EF">EF (Expedited)</option><option value="CS6">CS6</option><option value="CS7">CS7</option></select></div>
+          <div class="toolbar-group"><label>Timeout (s)</label><input type="number" id="trafficTimeoutInput" value="10" min="1" max="120"></div>
+          <div class="toolbar-group"><label>Delay (ms)</label><input type="number" id="trafficDelayInput" value="100" min="0"></div>
+        </div>
+        <div class="toolbar" id="trafficHttpToolbar">
+          <div class="toolbar-group"><label>HTTP Host</label><input type="text" id="trafficHttpHostInput" value="testserver.local"></div>
+          <div class="toolbar-group" id="trafficHttpEndpointGroup"><label>HTTP Endpoint</label><input type="text" id="trafficHttpEndpointInput" value="/api/v1/health"></div>
+          <div class="toolbar-group" id="trafficHttp2EndpointGroup" style="display:none"><label>HTTP/2 Endpoint</label><input type="text" id="trafficHttp2EndpointInput" value="/api/v2/status"></div>
+        </div>
+        <div class="main-layout">
+          <div class="panel scenarios-panel">
+            <div class="panel-header"><h3>Scenarios</h3><div class="scenario-actions"><button id="trafficSelectAllBtn" class="small-btn">All</button><button id="trafficDeselectAllBtn" class="small-btn">None</button></div></div>
+            <div class="scenarios-list" id="trafficScenariosList"></div>
+            <div id="trafficScenarioDetail" class="scenario-detail" style="border-top:1px solid #ddd; padding:10px; background:#fafafa; display:none; font-size:12px;">
+              <h4 style="margin:0 0 6px 0; color:#333;" id="trafficDetailName">Select a scenario</h4>
+              <div style="margin-bottom:4px;"><strong>Category:</strong> <span id="trafficDetailCategory">—</span></div>
+              <div style="margin-bottom:4px;"><strong>Description:</strong> <span id="trafficDetailDesc">—</span></div>
+              <div style="margin-bottom:4px;"><strong>Side:</strong> <span id="trafficDetailSide">—</span></div>
+              <div style="margin-bottom:4px;"><strong>Expected:</strong> <span id="trafficDetailExpected">—</span></div>
+              <div style="margin-bottom:4px;"><strong>Reason:</strong> <span id="trafficDetailReason" style="color:#666;">—</span></div>
+              <div style="margin-bottom:4px;" id="trafficDetailDscpRow"><strong>DSCP:</strong> <span id="trafficDetailDscp">—</span></div>
+              <div><strong>Steps:</strong></div>
+              <div id="trafficDetailSteps" style="font-family:monospace; font-size:11px; background:#fff; border:1px solid #eee; padding:6px; margin-top:4px; max-height:150px; overflow-y:auto; white-space:pre-wrap;">—</div>
+            </div>
+          </div>
+          <div class="panel results-panel" style="flex:1">
+            <div class="controls-bar">
+              <button id="trafficRunBtn" class="btn btn-primary">▶ Run Selected</button>
+              <button id="trafficStopBtn" class="btn btn-danger" disabled>■ Stop</button>
+              <div class="control-sep"></div>
+              <button id="trafficPcapBtn" class="btn btn-toggle">PCAP Off</button>
+              <div class="progress-wrap"><div class="progress-bar" id="trafficProgressBar"></div><span class="progress-text" id="trafficProgressText">0%</span></div>
+            </div>
+            <div class="results-scroll">
+              <table class="results-table"><thead><tr><th style="width:30px"></th><th>Scenario</th><th>Category</th><th>Status</th><th>Response</th><th style="width:80px">Duration</th></tr></thead><tbody id="trafficResultsBody"></tbody></table>
+            </div>
+            <div class="panel packet-panel" style="flex:1; display:flex; flex-direction:column;">
+              <div class="panel-header"><h3>Live Log</h3><div><button id="trafficCopyLogBtn" class="small-btn">Copy</button><button id="trafficClearLogBtn" class="small-btn">Clear</button></div></div>
+              <textarea id="trafficLog" class="traffic-log-area" readonly wrap="off" spellcheck="false" placeholder="Logs will appear here when you run scenarios..."></textarea>
+            </div>
+          </div>
+        </div>
+      </div>
     </main>
   </div>
   <script src="app.js"></script>
   <script src="ad-simulator.js"></script>
   <script src="syslog-sender.js"></script>
   <script src="xmlapi-sender.js"></script>
+  <script src="traffic-sender.js"></script>
 </body>
 </html>

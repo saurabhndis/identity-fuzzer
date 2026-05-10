@@ -550,4 +550,18 @@
       '<span class="stat"><span class="stat-label">Info:</span> <span class="stat-value">' + (report.stats.info || 0) + '</span></span>';
   }
 
+
+  // ── Page Navigation (sidebar) ──────────────────────────────────────────────
+  document.querySelectorAll('.sidebar-nav .nav-btn:not(.disabled)').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var targetPage = btn.dataset.page;
+      if (!targetPage) return;
+      document.querySelectorAll('.sidebar-nav .nav-btn').forEach(function (b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+      document.querySelectorAll('.page').forEach(function (p) { p.style.display = 'none'; p.classList.remove('active-page'); });
+      var pageEl = document.getElementById(targetPage + 'Page');
+      if (pageEl) { pageEl.style.display = ''; pageEl.classList.add('active-page'); }
+    });
+  });
+
 })();
