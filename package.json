@@ -3,11 +3,100 @@
   "version": "1.0.0",
   "description": "LDAP Identity Fuzzer - Test LDAP/AD directory server security with 149 crafted protocol scenarios",
   "main": "main.js",
+  "author": {
+    "name": "Identity Fuzzer Team",
+    "email": "support@identity-fuzzer.dev"
+  },
+  "license": "MIT",
   "scripts": {
     "start": "electron .",
-    "cli": "node cli.js"
+    "cli": "node cli.js",
+    "generate-icon": "node build/generate-icon.js",
+    "dist": "electron-builder --linux deb",
+    "dist:deb": "electron-builder --linux deb",
+    "dist:appimage": "electron-builder --linux AppImage",
+    "dist:all-linux": "electron-builder --linux deb AppImage",
+    "pack": "electron-builder --dir"
+  },
+  "build": {
+    "appId": "com.identityfuzzer.app",
+    "productName": "Identity Fuzzer",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "cli.js",
+      "package.json",
+      "lib/**/*",
+      "renderer/**/*",
+      "!lib/ad-simulator/.venv/**",
+      "!lib/ad-simulator/__pycache__/**",
+      "!lib/ad-simulator/src/**/__pycache__/**",
+      "!**/*.pyc",
+      "!**/node_modules/.cache/**"
+    ],
+    "extraResources": [
+      {
+        "from": "lib/ad-simulator/certs",
+        "to": "ad-simulator-certs",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "asarUnpack": [
+      "lib/ad-simulator/**/*"
+    ],
+    "afterPack": "./build/afterPack.js",
+    "linux": {
+      "target": [
+        {
+          "target": "deb",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "category": "Utility;Security;Network",
+      "icon": "build/icon.png",
+      "synopsis": "LDAP/AD Identity Protocol Fuzzer",
+      "description": "A comprehensive security testing tool for LDAP and Active Directory servers. Features 149 crafted protocol scenarios, syslog sender, XML API User-ID testing, traffic generation, and an AD simulator.",
+      "desktop": {
+        "entry": {
+          "Name": "Identity Fuzzer",
+          "Comment": "LDAP/AD Security Testing Tool",
+          "Keywords": "ldap;security;fuzzer;active-directory;testing;pentest",
+          "StartupWMClass": "identity-fuzzer"
+        }
+      }
+    },
+    "deb": {
+      "depends": [
+        "libgtk-3-0",
+        "libnotify4",
+        "libnss3",
+        "libxss1",
+        "libxtst6",
+        "xdg-utils",
+        "libatspi2.0-0",
+        "libuuid1",
+        "libsecret-1-0",
+        "python3",
+        "python3-pip"
+      ],
+      "recommends": [
+        "python3-venv"
+      ],
+      "priority": "optional",
+      "afterInstall": "build/deb-scripts/postinst.sh",
+      "afterRemove": "build/deb-scripts/postrm.sh"
+    }
   },
   "devDependencies": {
-    "electron": "^40.6.0"
+    "electron": "^40.6.0",
+    "electron-builder": "^26.8.1"
   }
 }

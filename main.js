@@ -386,6 +386,7 @@ ipcMain.handle('traffic:run', async (_event, runOpts) => {
       timeout: (runOpts.timeout || 10) * 1000,
       delay: runOpts.delay || 100,
       dscp: runOpts.dscp || 0,
+      useTls: runOpts.useTls || false,
       httpHost: runOpts.httpHost,
       httpEndpoint: runOpts.httpEndpoint,
       http2Endpoint: runOpts.http2Endpoint,
@@ -438,8 +439,14 @@ ipcMain.handle('traffic:run', async (_event, runOpts) => {
 
 ipcMain.handle('traffic:stop', () => {
   trafficAborted = true;
-  if (trafficClient) { trafficClient = null; }
-  if (trafficServer) { try { trafficServer.stop(); } catch (_) {} trafficServer = null; }
+  if (trafficClient) {
+    try { trafficClient.abort(); } catch (_) {}
+    trafficClient = null;
+  }
+  if (trafficServer) {
+    try { trafficServer.stop(); } catch (_) {}
+    trafficServer = null;
+  }
   return { ok: true };
 });
 

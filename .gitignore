@@ -7,3 +7,5 @@ out/
 .venv/
 __pycache__/
 *.pyc
+*.node
+lib/ad-simulator/vendor/

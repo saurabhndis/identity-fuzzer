@@ -24,6 +24,7 @@
   const hostInput = page.querySelector('#trafficHostInput');
   const portInput = page.querySelector('#trafficPortInput');
   const dscpSelect = page.querySelector('#trafficDscpSelect');
+  const tlsCheck = page.querySelector('#trafficTlsCheck');
   const httpHostInput = page.querySelector('#trafficHttpHostInput');
   const httpEndpointInput = page.querySelector('#trafficHttpEndpointInput');
   const http2EndpointInput = page.querySelector('#trafficHttp2EndpointInput');
@@ -165,15 +166,24 @@
       }
     });
 
-    // Update default port
+    // Update default port based on protocol and TLS setting
+    var useTls = tlsCheck ? tlsCheck.checked : false;
     if (portInput) {
-      if (protocol === 'tcp') portInput.value = '8080';
-      else if (protocol === 'http') portInput.value = '8080';
-      else if (protocol === 'http2') portInput.value = '8443';
+      portInput.value = useTls ? '8443' : '8080';
     }
 
     updateToolbarVisibility();
     renderScenarios();
+  }
+
+  // ── TLS toggle handler ────────────────────────────────────────────────────
+  if (tlsCheck) {
+    tlsCheck.addEventListener('change', function () {
+      var useTls = tlsCheck.checked;
+      if (portInput) {
+        portInput.value = useTls ? '8443' : '8080';
+      }
+    });
   }
 
   function updateToolbarVisibility() {
@@ -330,6 +340,7 @@
         host: hostInput ? hostInput.value : 'localhost',
         port: portInput ? parseInt(portInput.value, 10) : 8080,
         dscp: dscpSelect ? dscpSelect.value : '0',
+        useTls: tlsCheck ? tlsCheck.checked : false,
         httpHost: httpHostInput ? httpHostInput.value : undefined,
         httpEndpoint: httpEndpointInput ? httpEndpointInput.value : undefined,
         http2Endpoint: http2EndpointInput ? http2EndpointInput.value : undefined,
@@ -339,12 +350,16 @@
         pcapFile: pcapEnabled ? pcapFile : undefined,
       });
     } catch (err) {
-      appendLog('✗ Error: ' + err.message);
+      appendLog('✗ Error: ' + (err.message || err));
     }
 
     running = false;
     if (runBtn) runBtn.disabled = false;
     if (stopBtn) stopBtn.disabled = true;
+    if (statusBadge && statusBadge.textContent === 'RUNNING') {
+      statusBadge.textContent = 'DONE';
+      statusBadge.className = 'status-badge passed';
+    }
   }
 
   // ── Event Listeners ─────────────────────────────────────────────────────────
@@ -385,6 +400,7 @@
           host: hostInput ? hostInput.value : 'localhost',
           port: portInput ? parseInt(portInput.value, 10) : 8080,
           dscp: dscpSelect ? dscpSelect.value : '0',
+          useTls: tlsCheck ? tlsCheck.checked : false,
           httpHost: httpHostInput ? httpHostInput.value : undefined,
           httpEndpoint: httpEndpointInput ? httpEndpointInput.value : undefined,
           http2Endpoint: http2EndpointInput ? http2EndpointInput.value : undefined,
@@ -395,21 +411,30 @@
         });
       } catch (err) {
         console.error('Traffic run error:', err);
+        appendLog('✗ Error: ' + (err.message || err));
       }
 
+      // Run completed (or was stopped/aborted) — reset UI state
       running = false;
       runBtn.disabled = false;
       if (stopBtn) stopBtn.disabled = true;
+      if (statusBadge && statusBadge.textContent === 'RUNNING') {
+        statusBadge.textContent = 'DONE';
+        statusBadge.className = 'status-badge passed';
+      }
     });
   }
 
   if (stopBtn) {
-    stopBtn.addEventListener('click', function () {
-      window.traffic.stop();
+    stopBtn.addEventListener('click', async function () {
+      appendLog('⚠ Stopping...');
+      stopBtn.disabled = true; // Prevent double-click, will be re-enabled if needed
+      try {
+        await window.traffic.stop();
+      } catch (_) {}
       running = false;
       if (runBtn) runBtn.disabled = false;
-      stopBtn.disabled = true;
-      if (statusBadge) { statusBadge.textContent = 'STOPPED'; statusBadge.className = 'status-badge'; }
+      if (statusBadge) { statusBadge.textContent = 'STOPPED'; statusBadge.className = 'status-badge error'; }
     });
   }
 
