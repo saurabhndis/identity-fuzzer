@@ -842,13 +842,17 @@ ipcMain.handle('xmlapi-send', async (_event, opts) => {
       .map(m => ({ username: m, domain }));
     xml = gen.buildGroupMessage([{ groupDn, members: memberList }]);
     entryCount = memberList.length;
-  } else if (operation === 'tag-register' && tags) {
-    const tagList = typeof tags === 'string' ? tags.split(',').map(s => s.trim()) : tags;
-    const entries = [{ ip: ipAddress, tags: tagList }];
+  } else if (operation === 'tag-register') {
+    const tagList = tags
+      ? (typeof tags === 'string' ? tags.split(',').map(s => s.trim()).filter(Boolean) : tags)
+      : ['test-tag'];
+    const entries = [{ ip: ipAddress || '10.0.0.1', tags: tagList }];
     xml = gen.buildTagRegisterMessages(entries)[0];
-  } else if (operation === 'tag-unregister' && tags) {
-    const tagList = typeof tags === 'string' ? tags.split(',').map(s => s.trim()) : tags;
-    const entries = [{ ip: ipAddress, tags: tagList }];
+  } else if (operation === 'tag-unregister') {
+    const tagList = tags
+      ? (typeof tags === 'string' ? tags.split(',').map(s => s.trim()).filter(Boolean) : tags)
+      : ['test-tag'];
+    const entries = [{ ip: ipAddress || '10.0.0.1', tags: tagList }];
     xml = gen.buildTagUnregisterMessages(entries)[0];
   } else {
     // Default: login
